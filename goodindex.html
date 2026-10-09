@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen Home</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles/style.css">
+  <script src="scripts/main2.js" defer></script>
+</head>
+<body>
+
+  <!-- Icon sprite: used as <svg class="icon"><use href="#icon-..."/></svg> -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-9z"/></symbol>
+    <symbol id="icon-bookmark" viewBox="0 0 24 24"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1z"/></symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/></symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.2 3h-4.4l-.4 2.6a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.5a7 7 0 0 0 0 2.4l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2 1.2l.4 2.6h4.4l.4-2.6a7 7 0 0 0 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></symbol>
+    <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></symbol>
+    <symbol id="icon-logout" viewBox="0 0 24 24"><path d="M10 4H6a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M15 8l4 4-4 4M19 12H9"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+    <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15L6 17zM10 21h4"/></symbol>
+    <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="icon-arrow-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="icon-arrow-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7L8 5z"/></symbol>
+    <symbol id="icon-play-wide" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5-13-7.5z"/></symbol>
+    <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 17l-5.6 3 1.3-6.2L3 9.5l6.3-.7L12 3z"/></symbol>
+  </svg>
+
+  <div class="app">
+
+    <!-- Sidebar -->
+    <nav class="sidebar" aria-label="Main">
+      <a class="sidebar__brand" href="#">
+        <svg class="sidebar__logo" viewBox="0 0 30 30" aria-hidden="true">
+          <circle class="sidebar__logo-ring" cx="15" cy="15" r="14"/>
+          <path class="sidebar__logo-play" d="M12 9.5v11l9-5.5-9-5.5z"/>
+        </svg>
+        <span class="sidebar__brand-name">LUMEN</span>
+      </a>
+
+      <div class="sidebar__nav">
+        <a class="nav-item nav-item--active" href="#" aria-current="page">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-home"/></svg>Home
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-bookmark"/></svg>Bookmarks
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-download"/></svg>Downloads
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-user"/></svg>Profile
+        </a>
+      </div>
+
+      <div class="sidebar__nav sidebar__nav--secondary">
+        <a class="nav-item" href="#">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-settings"/></svg>Settings
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-help"/></svg>Help
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="icon nav-item__icon" aria-hidden="true"><use href="#icon-logout"/></svg>Log out
+        </a>
+      </div>
+    </nav>
+
+    <main class="main">
+
+      <!-- Top bar -->
+      <header class="topbar">
+        <label class="search">
+          <svg class="icon search__icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          <input class="search__input" id="search-input" type="search"
+                 placeholder="Search titles, people, genres"
+                 aria-label="Search titles, people, genres" autocomplete="off">
+        </label>
+
+        <button class="icon-button" type="button" aria-label="Notifications, 1 unread">
+          <svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>
+          <span class="icon-button__badge"></span>
+        </button>
+
+        <button class="account" type="button" aria-label="Account menu">
+          <span class="account__avatar">AR</span>
+          <span class="account__info">
+            <span class="account__name">Alex Rivera</span>
+            <span class="account__email">alex@example.com</span>
+          </span>
+          <svg class="icon account__chevron" aria-hidden="true"><use href="#icon-chevron-down"/></svg>
+        </button>
+      </header>
+
+      <div class="hero-row">
+
+        <!-- New releases -->
+        <section class="feature feature--primary" aria-labelledby="new-releases-title">
+          <h2 class="feature__title" id="new-releases-title">New Releases</h2>
+
+          <div class="feature-card" id="hero-card">
+            <div class="feature-card__scrim"></div>
+            <div class="feature-card__content">
+              <div class="tag-list" id="hero-tags">
+                <span class="tag">Sci-fi</span>
+                <span class="tag">Action</span>
+              </div>
+              <h3 class="feature-card__title" id="hero-title">Neon Meridian</h3>
+              <p class="feature-card__desc" id="hero-desc">A courier racing across a flooded megacity learns the package she carries is a map back to the night the lights went out.</p>
+
+              <div class="feature-card__actions">
+                <div class="feature-card__buttons">
+                  <button class="btn btn--primary" type="button">
+                    <svg class="icon icon--filled btn__icon" aria-hidden="true"><use href="#icon-play-wide"/></svg>Play
+                  </button>
+                  <button class="btn btn--secondary" type="button">
+                    <svg class="icon btn__icon" aria-hidden="true"><use href="#icon-download"/></svg>Download
+                  </button>
+                  <button class="btn btn--icon" type="button" aria-label="More options">
+                    <svg class="icon icon--filled btn__icon" aria-hidden="true"><use href="#icon-more"/></svg>
+                  </button>
+                </div>
+
+                <div class="carousel-controls">
+                  <button class="carousel-arrow" type="button" data-hero="prev" aria-label="Previous release">
+                    <svg class="icon carousel-arrow__icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+                  </button>
+                  <button class="carousel-arrow" type="button" data-hero="next" aria-label="Next release">
+                    <svg class="icon carousel-arrow__icon" aria-hidden="true"><use href="#icon-arrow-right"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="carousel-dots" id="hero-dots" role="group" aria-label="New releases pages">
+            <button class="carousel-dot is-active" type="button" aria-label="Go to release 1" aria-current="true"></button>
+            <button class="carousel-dot" type="button" aria-label="Go to release 2"></button>
+            <button class="carousel-dot" type="button" aria-label="Go to release 3"></button>
+            <button class="carousel-dot" type="button" aria-label="Go to release 4"></button>
+          </div>
+        </section>
+
+        <!-- Top rated -->
+        <section class="feature feature--secondary" aria-labelledby="top-rated-title">
+          <h2 class="feature__title" id="top-rated-title">Top Rated</h2>
+
+          <div class="feature-card feature-card--compact" id="top-card">
+            <div class="feature-card__scrim"></div>
+            <div class="feature-card__content">
+              <div class="tag-list">
+                <span class="tag" id="top-genre">Comedy</span>
+                <span class="tag tag--rating">
+                  <svg class="icon tag__star" aria-hidden="true"><use href="#icon-star"/></svg>
+                  <span id="top-score">9.1</span>
+                </span>
+              </div>
+              <h3 class="feature-card__title" id="top-title">Low Tide Club</h3>
+              <p class="feature-card__desc" id="top-desc">Five retirees, one failing seaside lido and a plan to save it that gets out of hand almost immediately.</p>
+
+              <div class="feature-card__actions">
+                <button class="play-button play-button--accent" id="top-play" type="button" aria-label="Play Low Tide Club">
+                  <svg class="icon icon--filled play-button__icon" aria-hidden="true"><use href="#icon-play"/></svg>
+                </button>
+                <div class="carousel-controls">
+                  <button class="carousel-arrow" type="button" data-top="prev" aria-label="Previous top rated">
+                    <svg class="icon carousel-arrow__icon" aria-hidden="true"><use href="#icon-arrow-left"/></svg>
+                  </button>
+                  <button class="carousel-arrow" type="button" data-top="next" aria-label="Next top rated">
+                    <svg class="icon carousel-arrow__icon" aria-hidden="true"><use href="#icon-arrow-right"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="carousel-dots" id="top-dots" role="group" aria-label="Top rated pages">
+            <button class="carousel-dot is-active" type="button" aria-label="Go to top rated 1" aria-current="true"></button>
+            <button class="carousel-dot" type="button" aria-label="Go to top rated 2"></button>
+            <button class="carousel-dot" type="button" aria-label="Go to top rated 3"></button>
+            <button class="carousel-dot" type="button" aria-label="Go to top rated 4"></button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Recommended -->
+      <section class="recommended" aria-labelledby="recommended-title">
+        <div class="recommended__header">
+          <h2 class="recommended__title" id="recommended-title">Recommended for you</h2>
+
+          <div class="chips" id="genre-chips" role="group" aria-label="Filter by genre">
+            <button class="chip is-active" type="button" data-genre="All" aria-pressed="true">All</button>
+            <button class="chip" type="button" data-genre="Comedy" aria-pressed="false">Comedy</button>
+            <button class="chip" type="button" data-genre="Action" aria-pressed="false">Action</button>
+            <button class="chip" type="button" data-genre="Horror" aria-pressed="false">Horror</button>
+            <button class="chip" type="button" data-genre="Drama" aria-pressed="false">Drama</button>
+            <button class="chip" type="button" data-genre="Animation" aria-pressed="false">Animation</button>
+          </div>
+
+          <button class="btn btn--soft" id="see-all" type="button" aria-pressed="false">See all</button>
+        </div>
+
+        <div class="movie-grid" id="movie-grid"></div>
+
+        <p class="empty-state" id="empty-state" hidden>Nothing matches that search. Try another title or switch the genre back to All.</p>
+      </section>
+    </main>
+  </div>
+
+  <!-- One movie card; script.js clones it for every title in the grid. -->
+  <template id="movie-card-template">
+    <article class="movie-card">
+      <div class="movie-card__scrim"></div>
+      <button class="movie-card__bookmark" type="button" aria-pressed="false">
+        <svg class="icon movie-card__bookmark-icon" aria-hidden="true"><use href="#icon-bookmark"/></svg>
+      </button>
+      <div class="movie-card__content">
+        <div class="movie-card__info">
+          <span class="tag tag--small"></span>
+          <h3 class="movie-card__title"></h3>
+          <p class="movie-card__desc"></p>
+        </div>
+        <button class="play-button play-button--glass" type="button">
+          <svg class="icon icon--filled play-button__icon" aria-hidden="true"><use href="#icon-play"/></svg>
+        </button>
+      </div>
+    </article>
+  </template>
+
+</body>
+</html>
