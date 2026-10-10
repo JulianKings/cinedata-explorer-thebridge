@@ -1,3 +1,4 @@
+// Data
 const pages = [
     {
         title: 'Inicio',
@@ -15,14 +16,52 @@ const pages = [
         icon: 'icon-play',
     },
 ];
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Utils
+function applyAttrs(node, attrs) {
+for (const [key, value] of Object.entries(attrs)) {
+    if (value == null || value === false) continue;
+    if (key === 'text') {
+    node.textContent = value;
+    } else if (key === 'hidden') {
+    node.hidden = Boolean(value);
+    } else if (key.startsWith('on') && typeof value === 'function') {
+    node.addEventListener(key.slice(2).toLowerCase(), value);
+    } else {
+    node.setAttribute(key, value === true ? '' : value);
+    }
+}
+}
+
+function h(tag, attrs = {}, ...children) {
+    const node = document.createElement(tag);
+    applyAttrs(node, attrs);
+    node.append(...children.flat().filter((child) => child != null && child !== false));
+    return node;
+  }
+
+  // Same as h(), for SVG elements.
+  function svg(tag, attrs = {}, ...children) {
+    const node = document.createElementNS(SVG_NS, tag);
+    applyAttrs(node, attrs);
+    node.append(...children.flat().filter((child) => child != null && child !== false));
+    return node;
+  }
+
+  // <svg class="icon ..."><use href="#icon-NAME"/></svg>, symbols live in index.html.
+  function icon(name, classes = '') {
+    return svg(
+      'svg',
+      { class: `icon ${classes}`.trim(), 'aria-hidden': 'true' },
+      svg('use', { href: `#icon-${name}` })
+    );
+  }
 
 
-const printBasicLayout = (currentPage) => {
-    const body = document.querySelector('body');
-
-    const app = document.createElement('div');
+const printBasicLayout = (currentPage) => {    
+    const app = document.querySelector('body');
     app.classList.add('app');
-    body.appendChild(app);
 
     // Sidebar
     const sidebar = document.createElement('nav');
@@ -30,33 +69,16 @@ const printBasicLayout = (currentPage) => {
     sidebar.setAttribute('aria-label', 'Main');
     app.appendChild(sidebar);
 
-    const brand = document.createElement('a');
-    brand.classList.add('sidebar__brand');
-    brand.setAttribute('href', '#');
+    const logo = svg('svg', { class: 'sidebar__logo', viewBox: '0 0 30 30', 'aria-hidden': 'true' },
+      svg('circle', { class: 'sidebar__logo-ring', cx: 15, cy: 15, r: 14 }),
+      svg('path', { class: 'sidebar__logo-play', d: 'M12 9.5v11l9-5.5-9-5.5z' })
+    );
+    sidebar.appendChild(logo);    
+
+    const brand = h('a', { class: 'sidebar__brand', href: '#' },
+      logo, h('span', { class: 'sidebar__brand-name', text: 'Cinema Explorer' })
+    );
     sidebar.appendChild(brand);
-
-    const logo = document.createElement('svg');
-    logo.classList.add('sidebar__logo');
-    logo.setAttribute('viewBox', '0 0 30 30');
-    logo.setAttribute('aria-hidden', 'true');    
-
-    const ring = document.createElement('circle');
-    ring.classList.add('sidebar__logo-ring');
-    ring.setAttribute('cx', '15');
-    ring.setAttribute('cy', '15');
-    ring.setAttribute('r', '14');
-    logo.appendChild(ring);
-
-    const play = document.createElement('path');
-    play.classList.add('sidebar__logo-play');
-    play.setAttribute('d', 'M12 9.5v11l9-5.5-9-5.5z');
-    logo.appendChild(play);
-    brand.appendChild(logo);
-
-    const brandName = document.createElement('span');
-    brandName.classList.add('sidebar__brand-name');
-    brandName.textContent = 'Cinema Explorer';
-    brand.appendChild(brandName);
 
     const nav = document.createElement('div');
     nav.classList.add('sidebar__nav');
@@ -64,7 +86,7 @@ const printBasicLayout = (currentPage) => {
 
     pages.forEach((page) => {
         const navItem = document.createElement('a');
-        navItem.classList.add('nav-item', 'nav-item--active');
+        navItem.classList.add('nav-item', (page.pageKey === currentPage) ? 'nav-item--active' : 'nav-item');
         navItem.setAttribute('href', '#');
         if(page.pageKey === currentPage) {
             navItem.setAttribute('aria-current', 'page');
