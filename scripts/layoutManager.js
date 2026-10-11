@@ -1,22 +1,28 @@
+import { getUpcomingMovies, getGenres, imageUrl } from './data/apiLoader.js';
 // Data
 const pages = [
     {
         title: 'Inicio',
         pageKey: 'home',
-        icon: 'icon-home',
+        icon: 'home',
     },
     {
         title: 'Guardadas',
         pageKey: 'saved',
-        icon: 'icon-bookmark',
+        icon: 'bookmark',
     },
     {
         title: 'Series',
         pageKey: 'series',
-        icon: 'icon-play',
+        icon: 'play',
     },
 ];
 const SVG_NS = 'http://www.w3.org/2000/svg';
+let genres = [];
+
+// DOM
+const app = document.querySelector('body');
+let main = null;
 
 // Utils
 function applyAttrs(node, attrs) {
@@ -59,8 +65,7 @@ function h(tag, attrs = {}, ...children) {
   }
 
 
-const printBasicLayout = (currentPage) => {    
-    const app = document.querySelector('body');
+const printBasicLayout = (currentPage) => {
     app.classList.add('app');
 
     // Sidebar
@@ -86,27 +91,39 @@ const printBasicLayout = (currentPage) => {
 
     pages.forEach((page) => {
         const navItem = document.createElement('a');
-        navItem.classList.add('nav-item', (page.pageKey === currentPage) ? 'nav-item--active' : 'nav-item');
+        navItem.classList.add('nav-item');
         navItem.setAttribute('href', '#');
         if(page.pageKey === currentPage) {
+            navItem.classList.add('nav-item--active');
             navItem.setAttribute('aria-current', 'page');
         }
         navItem.setAttribute('aria-label', page.title);
-        nav.appendChild(navItem);
 
-        const navItemIcon = document.createElement('svg');
-        navItemIcon.classList.add('icon', 'nav-item__icon');
-        navItemIcon.setAttribute('aria-hidden', 'true');
-        navItemIcon.innerHTML = '<use href="#icon-' + page.icon + '"></use>';
+        const navItemIcon = icon(page.icon, 'nav-item__icon');
         navItem.appendChild(navItemIcon);
-        navItem.textContent = page.title;
+
+        const navItemText = document.createElement('span');
+        navItemText.textContent = page.title;
+        navItem.appendChild(navItemText);
         nav.appendChild(navItem);
     });
 
-    const main = document.createElement('main');
+    main = document.createElement('main');
     main.classList.add('main');
     app.appendChild(main);
+}
 
+async function appendContent(contentType) {
+    switch(contentType) {
+        case 'home':
+        default:
+            await printHome();
+            break;
+    } 
+}
+
+async function printHome() {
+    genres = await getGenres();
     // Topbar
     const topbar = document.createElement('header');
     topbar.classList.add('topbar');
@@ -116,10 +133,7 @@ const printBasicLayout = (currentPage) => {
     search.classList.add('search');
     topbar.appendChild(search);
 
-    const searchIcon = document.createElement('svg');
-    searchIcon.classList.add('icon', 'search__icon');
-    searchIcon.setAttribute('aria-hidden', 'true');
-    searchIcon.innerHTML = '<use href="#icon-search"></use>';
+    const searchIcon = icon('search', 'search__icon');
     search.appendChild(searchIcon);
 
     const searchInput = document.createElement('input');
@@ -131,125 +145,150 @@ const printBasicLayout = (currentPage) => {
     searchInput.setAttribute('autocomplete', 'off');
     search.appendChild(searchInput);
 
-    const searchButton = document.createElement('button');
-    searchButton.classList.add('icon-button');
-    searchButton.setAttribute('type', 'button');
-    searchButton.setAttribute('aria-label', 'Notificaciones, 1 no leído');
-    search.appendChild(searchButton);
+    const lightModeButton = document.createElement('button');
+    lightModeButton.classList.add('icon-button');
+    lightModeButton.setAttribute('type', 'button');
+    lightModeButton.setAttribute('aria-label', 'Modo Oscuro/Claro');
+    topbar.appendChild(lightModeButton);
 
-    const searchButtonIcon = document.createElement('svg');
-    searchButtonIcon.classList.add('icon');
-    searchButtonIcon.setAttribute('aria-hidden', 'true');
-    searchButtonIcon.innerHTML = '<use href="#icon-bell"></use>';
-    searchButton.appendChild(searchButtonIcon);
-
-    const searchButtonBadge = document.createElement('span');
-    searchButtonBadge.classList.add('icon-button__badge');
-    searchButton.appendChild(searchButtonBadge);
+    const lightModeButtonIcon = icon('sun', 'icon');
+    lightModeButton.appendChild(lightModeButtonIcon);
 
     // Topbar
     const heroRow = document.createElement('div');
     heroRow.classList.add('hero-row');
     main.appendChild(heroRow);
 
-    // New releases
-    const newReleases = document.createElement('section');
-    newReleases.classList.add('feature', 'feature--primary');
-    newReleases.setAttribute('aria-labelledby', 'new-releases-title');
-    heroRow.appendChild(newReleases);
+    // New releases    
+    const upcomingMovies = await getUpcomingMovies();
 
-    const newReleasesTitle = document.createElement('h2');
-    newReleasesTitle.classList.add('feature__title');
-    newReleasesTitle.setAttribute('id', 'new-releases-title');
-    newReleasesTitle.textContent = 'Las más nuevas';        
-    newReleases.appendChild(newReleasesTitle);
+    const upcomingMovieBox = document.createElement('section');
+    upcomingMovieBox.classList.add('feature', 'feature--primary');
+    upcomingMovieBox.setAttribute('aria-labelledby', 'new-releases-title');
+    heroRow.appendChild(upcomingMovieBox);
 
-    const newReleasesCard = document.createElement('div');
-    newReleasesCard.classList.add('feature-card');
-    newReleasesCard.setAttribute('id', 'hero-card');
-    newReleases.appendChild(newReleasesCard);
+    const upcomingMovieBoxTitle = document.createElement('h2');
+    upcomingMovieBoxTitle.classList.add('feature__title');
+    upcomingMovieBoxTitle.setAttribute('id', 'new-releases-title');
+    upcomingMovieBoxTitle.textContent = 'Estrenos más esperados';        
+    upcomingMovieBox.appendChild(upcomingMovieBoxTitle);
 
-    const newReleasesCardScrim = document.createElement('div');
-    newReleasesCardScrim.classList.add('feature-card__scrim');
-    newReleasesCard.appendChild(newReleasesCardScrim);
+    const upcomingSlider = document.createElement('div');
+    upcomingSlider.classList.add('feature-slider', 'feature-slider--primary');
+    upcomingSlider.setAttribute('role', 'group');
+    upcomingSlider.setAttribute('aria-roledescription', 'carrusel');
+    upcomingSlider.setAttribute('aria-label', 'Estrenos más esperados');
+    upcomingMovieBox.appendChild(upcomingSlider);
 
-    const newReleasesCardContent = document.createElement('div');
-    newReleasesCardContent.classList.add('feature-card__content');
-    newReleasesCard.appendChild(newReleasesCardContent);
+    const upcomingTrack = document.createElement('div');
+    upcomingTrack.classList.add('feature-slider__track');
+    upcomingSlider.appendChild(upcomingTrack);
 
-    const newReleasesCardTitle = document.createElement('h3');
-    newReleasesCardTitle.classList.add('tag-list');
-    newReleasesCardTitle.setAttribute('id', 'hero-tags');        
-    newReleasesCardContent.appendChild(newReleasesCardTitle);
+    const topThree = upcomingMovies.results.slice(0, 5);
+    topThree.forEach((movie) => {
+        const upcomingMovieCard = document.createElement('div');
+        upcomingMovieCard.classList.add('feature-card');
 
-    const newReleasesCardDesc = document.createElement('p');
-    newReleasesCardDesc.classList.add('feature-card__desc');
-    newReleasesCardDesc.setAttribute('id', 'hero-desc');
-    newReleasesCardContent.appendChild(newReleasesCardDesc);
+        const upcomingMovieCardScrim = document.createElement('div');
+        upcomingMovieCardScrim.classList.add('feature-card__scrim');
+        upcomingMovieCard.appendChild(upcomingMovieCardScrim);
 
-    const newReleasesCardActions = document.createElement('div');
-    newReleasesCardActions.classList.add('feature-card__actions');
-    newReleasesCard.appendChild(newReleasesCardActions);
+        const upcomingMovieCardContent = document.createElement('div');
+        upcomingMovieCardContent.classList.add('feature-card__content');
+        upcomingMovieCard.appendChild(upcomingMovieCardContent);
 
-    const newReleasesCardButtons = document.createElement('div');
-    newReleasesCardButtons.classList.add('feature-card__buttons');
-    newReleasesCardActions.appendChild(newReleasesCardButtons);                        
+        const upcomingMovieTag = document.createElement('div');
+        upcomingMovieTag.classList.add('tag-list');
+        upcomingMovieCardContent.appendChild(upcomingMovieTag);
 
-    const newReleasesCardButtonsPlay = document.createElement('button');
-    newReleasesCardButtonsPlay.classList.add('btn', 'btn--primary');
-    newReleasesCardButtonsPlay.setAttribute('type', 'button');
-    newReleasesCardButtonsPlay.innerHTML = '<svg class="icon icon--filled btn__icon" aria-hidden="true"><use href="#icon-play-wide"></use></svg>Más detalles';
-    newReleasesCardButtons.appendChild(newReleasesCardButtonsPlay);
+        movie.genre_ids.forEach((genreId) => {
+            const genre = genres.find((genre) => genre.id === genreId);
+            if (genre) {
+                const tagItem = document.createElement('span');
+                tagItem.classList.add('tag');
+                tagItem.textContent = genre.name;
+                upcomingMovieTag.appendChild(tagItem);              
+          }
+        });
 
-    const newReleasesCardButtonsCarousel = document.createElement('div');
-    newReleasesCardButtonsCarousel.classList.add('carousel-controls');
-    newReleasesCardButtons.appendChild(newReleasesCardButtonsCarousel);
+        const upcomingMovieTitle = document.createElement('h3');
+        upcomingMovieTitle.classList.add('feature-card__title');
+        upcomingMovieTitle.textContent = movie.title;
+        upcomingMovieCardContent.appendChild(upcomingMovieTitle);
 
-    const newReleasesCardButtonsCarouselPrev = document.createElement('button');
-    newReleasesCardButtonsCarouselPrev.classList.add('carousel-arrow');
-    newReleasesCardButtonsCarouselPrev.setAttribute('type', 'button');
-    newReleasesCardButtonsCarouselPrev.setAttribute('data-hero', 'prev');
-    newReleasesCardButtonsCarouselPrev.setAttribute('aria-label', 'Previous release');
-    newReleasesCardButtonsCarousel.appendChild(newReleasesCardButtonsCarouselPrev);
+        const upcomingMovieDesc = document.createElement('p');
+        upcomingMovieDesc.classList.add('feature-card__desc');
+        upcomingMovieDesc.textContent = movie.overview;
+        upcomingMovieCardContent.appendChild(upcomingMovieDesc);
 
-    const newReleasesCardButtonsCarouselNext = document.createElement('button');
-    newReleasesCardButtonsCarouselNext.classList.add('carousel-arrow');
-    newReleasesCardButtonsCarouselNext.setAttribute('type', 'button');
-    newReleasesCardButtonsCarouselNext.setAttribute('data-hero', 'next');
-    newReleasesCardButtonsCarouselNext.setAttribute('aria-label', 'Next release');
-    newReleasesCardButtonsCarousel.appendChild(newReleasesCardButtonsCarouselNext);
+        const upcomingMovieActions = document.createElement('div');
+        upcomingMovieActions.classList.add('feature-card__actions');
+        upcomingMovieCardContent.appendChild(upcomingMovieActions);
+
+        const upcomingMovieButtons = document.createElement('div');
+        upcomingMovieButtons.classList.add('feature-card__buttons');
+        upcomingMovieActions.appendChild(upcomingMovieButtons);                        
+
+        const upcomingMovieButtonsRelease = document.createElement('button');
+        upcomingMovieButtonsRelease.classList.add('btn', 'btn--primary');
+        upcomingMovieButtonsRelease.setAttribute('type', 'button');
+        upcomingMovieButtonsRelease.innerHTML = ` <svg class="icon icon--filled btn__icon" aria-hidden="true"><use href="#icon-play-wide"></use></svg>${movie.release_date}`;
+        upcomingMovieButtons.appendChild(upcomingMovieButtonsRelease);
+
+        const upcomingMovieButtonsDetails = document.createElement('button');
+        upcomingMovieButtonsDetails.classList.add('btn', 'btn--icon');
+        upcomingMovieButtonsDetails.setAttribute('type', 'button');
+
+        const upcomingMovieButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
+        upcomingMovieButtonsDetails.appendChild(upcomingMovieButtonsDetailsIcon);
+        upcomingMovieButtons.appendChild(upcomingMovieButtonsDetails);
+
+        // --art is what style.css paints behind the card (image + cover + centered)
+        const posterUrl = imageUrl(movie.poster_path, 'w780');
+        upcomingMovieCard.style.setProperty('background-image', `url(${posterUrl})`);
+        upcomingTrack.appendChild(upcomingMovieCard);
+    });
+
+    const upcomingMovieButtonsCarousel = document.createElement('div');
+    upcomingMovieButtonsCarousel.classList.add('carousel-controls', 'feature-slider__controls');
+    upcomingSlider.appendChild(upcomingMovieButtonsCarousel);
+
+    const upcomingMovieButtonsCarouselPrev = document.createElement('button');
+    upcomingMovieButtonsCarouselPrev.classList.add('carousel-arrow');
+    upcomingMovieButtonsCarouselPrev.setAttribute('type', 'button');
+    upcomingMovieButtonsCarouselPrev.setAttribute('data-hero', 'prev');
+    upcomingMovieButtonsCarouselPrev.setAttribute('aria-label', 'Estreno anterior');
+    upcomingMovieButtonsCarousel.appendChild(upcomingMovieButtonsCarouselPrev);
+
+    const upcomingMovieButtonsCarouselPrevIcon = icon('arrow-left', 'carousel-arrow__icon');
+    upcomingMovieButtonsCarouselPrev.appendChild(upcomingMovieButtonsCarouselPrevIcon);
+
+    const upcomingMovieButtonsCarouselNext = document.createElement('button');
+    upcomingMovieButtonsCarouselNext.classList.add('carousel-arrow');
+    upcomingMovieButtonsCarouselNext.setAttribute('type', 'button');
+    upcomingMovieButtonsCarouselNext.setAttribute('data-hero', 'next');
+    upcomingMovieButtonsCarouselNext.setAttribute('aria-label', 'Siguiente estreno');
+    upcomingMovieButtonsCarousel.appendChild(upcomingMovieButtonsCarouselNext);
+
+    const upcomingMovieButtonsCarouselNextIcon = icon('arrow-right', 'carousel-arrow__icon');
+    upcomingMovieButtonsCarouselNext.appendChild(upcomingMovieButtonsCarouselNextIcon);
 
     const newReleasesDots = document.createElement('div');
     newReleasesDots.classList.add('carousel-dots');
     newReleasesDots.setAttribute('id', 'hero-dots');
     newReleasesDots.setAttribute('role', 'group');
     newReleasesDots.setAttribute('aria-label', 'New releases pages');
-    newReleasesCard.appendChild(newReleasesDots);
+    upcomingMovieBox.appendChild(newReleasesDots);
 
-    const newReleasesDotsButton = document.createElement('button');
-    newReleasesDotsButton.classList.add('carousel-dot', 'is-active');
-    newReleasesDotsButton.setAttribute('type', 'button');
-    newReleasesDotsButton.setAttribute('aria-label', 'Go to release 1');
-    newReleasesDotsButton.setAttribute('aria-current', 'true');
-    newReleasesDots.appendChild(newReleasesDotsButton);
-
-    const newReleasesDotsButton2 = document.createElement('button');
-    newReleasesDotsButton2.classList.add('carousel-dot');
-    newReleasesDotsButton2.setAttribute('type', 'button');
-    newReleasesDotsButton2.setAttribute('aria-label', 'Go to release 2');
-    newReleasesDots.appendChild(newReleasesDotsButton2);
-
-    const newReleasesDotsButton3 = document.createElement('button');
-    newReleasesDotsButton3.classList.add('carousel-dot');
-    newReleasesDotsButton3.setAttribute('type', 'button');
-    newReleasesDotsButton3.setAttribute('aria-label', 'Go to release 3');
-    newReleasesDots.appendChild(newReleasesDotsButton3);
-
-    const newReleasesDotsButton4 = document.createElement('button');
-    newReleasesDotsButton4.classList.add('carousel-dot');
-    newReleasesDotsButton4.setAttribute('type', 'button');
-    newReleasesDotsButton4.setAttribute('aria-label', 'Go to release 4');
-    newReleasesDots.appendChild(newReleasesDotsButton4);
+    setupSlider({
+        slider: upcomingSlider,
+        track: upcomingTrack,
+        controls: upcomingMovieButtonsCarousel,
+        prevButton: upcomingMovieButtonsCarouselPrev,
+        nextButton: upcomingMovieButtonsCarouselNext,
+        dotsContainer: newReleasesDots,
+        dotLabel: 'Ir al estreno',
+    });
 
     // Top rated
     const topRated = document.createElement('section');
@@ -442,8 +481,54 @@ const printBasicLayout = (currentPage) => {
     recommended.appendChild(recommendedEmptyState); 
 }
 
-function appendContent() {
-  console.log("Hello World");
+function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {
+    const slides = [...track.children];
+    let current = 0;
+
+    slides.forEach((slide, index) => {
+        slide.setAttribute('role', 'group');
+        slide.setAttribute('aria-roledescription', 'diapositiva');
+        slide.setAttribute('aria-label', `${index + 1} de ${slides.length}`);
+    });
+
+    const dots = slides.map((slide, index) => {
+        const dot = document.createElement('button');
+        dot.classList.add('carousel-dot');
+        dot.setAttribute('type', 'button');
+        dot.setAttribute('aria-label', `${dotLabel} ${index + 1}`);
+        dot.addEventListener('click', () => goTo(index));
+        dotsContainer.appendChild(dot);
+        return dot;
+    });
+
+    function goTo(index) {
+        if (slides.length === 0) return;
+        current = (index + slides.length) % slides.length;
+        slider.style.setProperty('--index', current);
+
+        slides.forEach((slide, i) => slide.toggleAttribute('inert', i !== current));
+        dots.forEach((dot, i) => {
+            dot.classList.toggle('is-active', i === current);
+            if (i === current) {
+                dot.setAttribute('aria-current', 'true');
+            } else {
+                dot.removeAttribute('aria-current');
+            }
+        });
+    }
+
+    prevButton.addEventListener('click', () => goTo(current - 1));
+    nextButton.addEventListener('click', () => goTo(current + 1));
+    slider.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft') goTo(current - 1);
+        if (event.key === 'ArrowRight') goTo(current + 1);
+    });
+
+    controls.hidden = slides.length < 2;
+    dotsContainer.hidden = slides.length < 2;
+
+    goTo(0);
+    return { goTo };
 }
 
 export { printBasicLayout, appendContent };

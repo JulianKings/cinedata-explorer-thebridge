@@ -1,4 +1,6 @@
 :root {
+  color-scheme: dark;
+
   /* Change this one value to re-colour the whole UI. */
   --color-accent: #2F6BFF;
 
@@ -13,9 +15,12 @@
   --color-text: #EEF0F5;
   --color-text-soft: #D6DAE8;
   --color-text-muted: #B4B9CA;
-  --color-text-subtle: #9499AD;
+  --color-text-strong: #FFFFFF;
+  --color-on-art: #EEF0F5; /* text drawn over poster art, same in both themes */
+  --color-chip-text: #D0D4E2;
+  --color-logo-ring: #FFFFFF;
+  --color-focus: #FFFFFF;
   --color-on-accent: #FFFFFF;
-  --color-badge: #FF5A5F;
   --color-star: #FFC857;
   --color-dot-idle: #4A4F63;
 
@@ -34,6 +39,27 @@
 
   --space-page: 32px;
 }
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: #F3F4F8;
+  --color-sidebar: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #E9ECF2;
+  --color-border: #DADDE6;
+  --color-divider: #E4E7EE;
+  --color-dashed: #C5CAD8;
+
+  --color-text: #14161D;
+  --color-text-muted: #4B5066;
+  --color-text-strong: #0B0C10;
+  --color-chip-text: #3A3F52;
+  --color-logo-ring: #14161D;
+  --color-focus: var(--color-accent);
+  --color-dot-idle: #7F869D;
+}
+
 
 *,
 *::before,
@@ -68,13 +94,14 @@ h1, h2, h3, p {
 
 button:focus-visible,
 a:focus-visible {
-  outline: 2px solid #FFFFFF;
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
 [hidden] {
   display: none !important;
 }
+
 
 .sprite {
   position: absolute;
@@ -142,10 +169,6 @@ a:focus-visible {
   padding-left: 28px;
 }
 
-:not(svg) {
-  transform-origin: 0px 0px;
-}
-
 .sidebar__logo {
   width: 30px;
   height: 30px;
@@ -153,7 +176,7 @@ a:focus-visible {
 
 .sidebar__logo-ring {
   fill: none;
-  stroke: #FFFFFF;
+  stroke: var(--color-logo-ring);
   stroke-width: 2;
 }
 
@@ -200,7 +223,7 @@ a:focus-visible {
     color-mix(in srgb, var(--color-accent) 22%, transparent),
     transparent
   );
-  color: #FFFFFF;
+  color: var(--color-text-strong);
   font-weight: 600;
 }
 
@@ -219,7 +242,8 @@ a:focus-visible {
 }
 
 .search {
-  flex: 1 1 280px;
+  flex: 1 1 200px;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -264,63 +288,6 @@ a:focus-visible {
   color: var(--color-text);
 }
 
-.icon-button__badge {
-  position: absolute;
-  top: 11px;
-  right: 12px;
-  width: 9px;
-  height: 9px;
-  border: 2px solid var(--color-surface);
-  border-radius: 50%;
-  background: var(--color-badge);
-}
-
-.account {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 0 16px 0 4px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-}
-
-.account__avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #FF8A5B, #8F6BFF);
-  color: #0B0C10;
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.account__info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.account__name {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.account__email {
-  color: var(--color-text-subtle);
-  font-size: 12px;
-}
-
-.account__chevron {
-  width: 16px;
-  height: 16px;
-  color: var(--color-text-muted);
-  stroke-width: 2.2;
-}
 
 .btn {
   display: flex;
@@ -495,8 +462,6 @@ a:focus-visible {
 }
 
 
-/* 8. Feature cards (New Releases / Top Rated)
-   ========================================================================== */
 .feature {
   display: flex;
   flex-direction: column;
@@ -525,6 +490,7 @@ a:focus-visible {
   --scrim-end: 78%;
 
   position: relative;
+  color: var(--color-on-art);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -617,6 +583,58 @@ a:focus-visible {
 }
 
 
+
+.feature-slider {
+  --index: 0;
+
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card-lg);
+  container-type: inline-size;
+  color: var(--color-on-art); 
+}
+
+.feature-slider__track {
+  display: flex;
+  transform: translateX(calc(var(--index) * -100%));
+  transition: transform 600ms cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+
+
+.feature-slider .feature-card {
+  flex: 0 0 100%;
+  min-width: 0;
+  border-radius: 0;
+}
+
+
+.feature-slider__controls {
+  position: absolute;
+  right: 28px;
+  bottom: 30px;
+}
+
+.feature-slider--compact .feature-slider__controls {
+  right: 24px;
+  bottom: 28px;
+}
+
+
+@container (max-width: 539px) {
+  .feature-slider--primary .feature-slider__controls {
+    top: 16px;
+    right: 16px;
+    bottom: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-slider__track {
+    transition: none;
+  }
+}
+
+
 .recommended {
   padding: 20px var(--space-page) 0;
 }
@@ -642,7 +660,7 @@ a:focus-visible {
   min-height: 46px;
   padding: 0 20px;
   border-radius: var(--radius-pill);
-  color: #D0D4E2;
+  color: var(--color-chip-text);
   font-size: 14px;
   font-weight: 500;
 }
@@ -665,6 +683,7 @@ a:focus-visible {
   --art: linear-gradient(180deg, #33195E, #06070B);
 
   position: relative;
+  color: var(--color-on-art);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
