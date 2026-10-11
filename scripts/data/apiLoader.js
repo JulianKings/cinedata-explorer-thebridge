@@ -1,24 +1,13 @@
-import { API_KEY, CACHE_MS, MAX_RETRIES } from './config.js';
+import { API_KEY, LANGUAGE, CACHE_MS, MAX_RETRIES } from './config.js';
 import { TmdbError } from './models/utils.js';
 
 const API_URL = 'https://api.themoviedb.org/3';
-const IMAGE_URL = 'https://image.tmdb.org/t/p/';
 
 const cache = new Map();
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
 // utils
-function validImagePath(path) {
-    return typeof path === 'string' && /^\/[\w.-]+\.(jpe?g|png|svg)$/i.test(path) ? path : null;
-}
-
-function imageUrl(path, size = 'w500') {
-    const safePath = validImagePath(path);
-    if (!safePath || !/^(w\d+|original)$/.test(size)) return null;
-    return `${IMAGE_URL}${size}${safePath}`;
-}
-
 function clearCache() {
     cache.clear();
 }
@@ -26,7 +15,7 @@ function clearCache() {
 // API
 function request(path, params = {}) {
     const url = new URL(API_URL + path);
-    const query = { language: "es-ES", ...params };
+    const query = { language: LANGUAGE, ...params };
     for (const [key, value] of Object.entries(query)) {
         if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
     }
@@ -95,9 +84,13 @@ async function getUpcomingMovies() {
     return (await request('/discover/movie', { "primary_release_date.gte": formattedDate, sort_by: 'popularity.desc', include_adult: true }));
 }
 
+async function getTopRatedMovies() {
+    return (await request('/movie/top_rated', { sort_by: 'vote_average.desc', 'vote_count.gte': 1000000, include_adult: true }));
+}
+
 async function getGenres() {
     const data = await request('/genre/movie/list');
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
   }
 
-export { imageUrl, clearCache, getUpcomingMovies, getGenres };
+export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies };

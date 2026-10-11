@@ -1,4 +1,5 @@
-import { getUpcomingMovies, getGenres, imageUrl } from './data/apiLoader.js';
+import { getUpcomingMovies, getGenres, getTopRatedMovies } from './data/apiLoader.js';
+import { getHeroImageUrl } from './utils.js';
 // Data
 const pages = [
     {
@@ -19,25 +20,31 @@ const pages = [
 ];
 const SVG_NS = 'http://www.w3.org/2000/svg';
 let genres = [];
+const THEME_KEY = 'cinema-theme';
+let theme = 'dark';
 
 // DOM
 const app = document.querySelector('body');
 let main = null;
+const heroCards = [];
+let resizeTimer = null;
+let themeIcon = null;
+let themeButton = null;
 
 // Utils
 function applyAttrs(node, attrs) {
-for (const [key, value] of Object.entries(attrs)) {
-    if (value == null || value === false) continue;
-    if (key === 'text') {
-    node.textContent = value;
-    } else if (key === 'hidden') {
-    node.hidden = Boolean(value);
-    } else if (key.startsWith('on') && typeof value === 'function') {
-    node.addEventListener(key.slice(2).toLowerCase(), value);
-    } else {
-    node.setAttribute(key, value === true ? '' : value);
+    for (const [key, value] of Object.entries(attrs)) {
+        if (value == null || value === false) continue;
+        if (key === 'text') {
+            node.textContent = value;
+        } else if (key === 'hidden') {
+            node.hidden = Boolean(value);
+        } else if (key.startsWith('on') && typeof value === 'function') {
+            node.addEventListener(key.slice(2).toLowerCase(), value);
+        } else {
+            node.setAttribute(key, value === true ? '' : value);
+        }
     }
-}
 }
 
 function h(tag, attrs = {}, ...children) {
@@ -45,25 +52,79 @@ function h(tag, attrs = {}, ...children) {
     applyAttrs(node, attrs);
     node.append(...children.flat().filter((child) => child != null && child !== false));
     return node;
-  }
+}
 
-  // Same as h(), for SVG elements.
-  function svg(tag, attrs = {}, ...children) {
+function svg(tag, attrs = {}, ...children) {
     const node = document.createElementNS(SVG_NS, tag);
     applyAttrs(node, attrs);
     node.append(...children.flat().filter((child) => child != null && child !== false));
     return node;
-  }
+}
 
-  // <svg class="icon ..."><use href="#icon-NAME"/></svg>, symbols live in index.html.
-  function icon(name, classes = '') {
+function icon(name, classes = '') {
     return svg(
-      'svg',
-      { class: `icon ${classes}`.trim(), 'aria-hidden': 'true' },
-      svg('use', { href: `#icon-${name}` })
+        'svg',
+        { class: `icon ${classes}`.trim(), 'aria-hidden': 'true' },
+        svg('use', { href: `#icon-${name}` })
     );
-  }
+}
 
+function setHeroArt(card, movie, preload = false) {
+    const url = getHeroImageUrl(movie);
+    if (!url || card.dataset.artUrl === url) return;
+
+    const paint = () => {
+        card.dataset.artUrl = url;
+        card.style.setProperty('--art', `url("${url}") center / cover no-repeat`);
+    };
+
+    if (!preload) {
+        paint();
+        return;
+    }
+    const image = new Image();
+    image.onload = () => {
+        if (getHeroImageUrl(movie) === url) paint(); // skip it if the window changed again meanwhile
+    };
+    image.src = url;
+}
+
+function loadTheme() {
+    try {
+        return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark';
+    } catch (error) {
+        return 'dark'; // ???
+    }
+}
+
+// DOM EVENTS
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        heroCards.forEach(({ card, movie }) => setHeroArt(card, movie, true));
+    }, 200);
+});
+
+// DOM / VIEWS
+function renderThemeButton() {
+    if (!themeIcon || !themeButton) return;
+    const isDark = theme === 'dark';
+    themeIcon.firstElementChild.setAttribute('href', isDark ? '#icon-sun' : '#icon-moon');
+    themeButton.setAttribute('aria-label', isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    themeButton.setAttribute('aria-pressed', String(!isDark));
+}
+
+function applyTheme(newTheme, remember = false) {
+    theme = newTheme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = theme;
+    renderThemeButton();
+    if (!remember) return;
+    try {
+        localStorage.setItem(THEME_KEY, theme);
+    } catch (error) {
+        /* ??? */
+    }
+}
 
 const printBasicLayout = (currentPage) => {
     app.classList.add('app');
@@ -111,6 +172,8 @@ const printBasicLayout = (currentPage) => {
     main = document.createElement('main');
     main.classList.add('main');
     app.appendChild(main);
+
+    loadTheme();
 }
 
 async function appendContent(contentType) {
@@ -154,6 +217,13 @@ async function printHome() {
     const lightModeButtonIcon = icon('sun', 'icon');
     lightModeButton.appendChild(lightModeButtonIcon);
 
+    themeIcon = lightModeButtonIcon;
+    themeButton = lightModeButton;
+    renderThemeButton();
+    applyTheme(theme);
+
+    lightModeButton.addEventListener('click', () => applyTheme(theme === 'dark' ? 'light' : 'dark', true));
+
     // Topbar
     const heroRow = document.createElement('div');
     heroRow.classList.add('hero-row');
@@ -184,8 +254,9 @@ async function printHome() {
     upcomingTrack.classList.add('feature-slider__track');
     upcomingSlider.appendChild(upcomingTrack);
 
-    const topThree = upcomingMovies.results.slice(0, 5);
-    topThree.forEach((movie) => {
+    heroCards.length = 0;
+    const topFive = upcomingMovies.results.slice(0, 5);
+    topFive.forEach((movie) => {
         const upcomingMovieCard = document.createElement('div');
         upcomingMovieCard.classList.add('feature-card');
 
@@ -208,7 +279,7 @@ async function printHome() {
                 tagItem.classList.add('tag');
                 tagItem.textContent = genre.name;
                 upcomingMovieTag.appendChild(tagItem);              
-          }
+            } 
         });
 
         const upcomingMovieTitle = document.createElement('h3');
@@ -232,20 +303,27 @@ async function printHome() {
         const upcomingMovieButtonsRelease = document.createElement('button');
         upcomingMovieButtonsRelease.classList.add('btn', 'btn--primary');
         upcomingMovieButtonsRelease.setAttribute('type', 'button');
-        upcomingMovieButtonsRelease.innerHTML = ` <svg class="icon icon--filled btn__icon" aria-hidden="true"><use href="#icon-play-wide"></use></svg>${movie.release_date}`;
+        upcomingMovieButtonsRelease.setAttribute('aria-label', 'Ver el estreno');
         upcomingMovieButtons.appendChild(upcomingMovieButtonsRelease);
+
+        const upcomingMovieButtonsReleaseIcon = icon('play-wide', 'icon--filled btn__icon');
+        upcomingMovieButtonsRelease.appendChild(upcomingMovieButtonsReleaseIcon);
+
+        const upcomingMovieButtonsReleaseText = document.createElement('span');
+        upcomingMovieButtonsReleaseText.textContent = movie.release_date;
+        upcomingMovieButtonsRelease.appendChild(upcomingMovieButtonsReleaseText);
 
         const upcomingMovieButtonsDetails = document.createElement('button');
         upcomingMovieButtonsDetails.classList.add('btn', 'btn--icon');
         upcomingMovieButtonsDetails.setAttribute('type', 'button');
+        upcomingMovieButtonsDetails.setAttribute('aria-label', 'Más información');
 
         const upcomingMovieButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
         upcomingMovieButtonsDetails.appendChild(upcomingMovieButtonsDetailsIcon);
         upcomingMovieButtons.appendChild(upcomingMovieButtonsDetails);
 
-        // --art is what style.css paints behind the card (image + cover + centered)
-        const posterUrl = imageUrl(movie.poster_path, 'w780');
-        upcomingMovieCard.style.setProperty('background-image', `url(${posterUrl})`);
+        heroCards.push({ card: upcomingMovieCard, movie });
+        setHeroArt(upcomingMovieCard, movie);
         upcomingTrack.appendChild(upcomingMovieCard);
     });
 
@@ -277,7 +355,7 @@ async function printHome() {
     newReleasesDots.classList.add('carousel-dots');
     newReleasesDots.setAttribute('id', 'hero-dots');
     newReleasesDots.setAttribute('role', 'group');
-    newReleasesDots.setAttribute('aria-label', 'New releases pages');
+    newReleasesDots.setAttribute('aria-label', 'Secciones de nuevos estrenos');
     upcomingMovieBox.appendChild(newReleasesDots);
 
     setupSlider({
@@ -291,6 +369,7 @@ async function printHome() {
     });
 
     // Top rated
+    const topRatedMovies = await getTopRatedMovies();
     const topRated = document.createElement('section');
     topRated.classList.add('feature', 'feature--secondary');
     topRated.setAttribute('aria-labelledby', 'top-rated-title');
@@ -302,99 +381,126 @@ async function printHome() {
     topRatedTitle.textContent = 'Mejor Valoradas';
     topRated.appendChild(topRatedTitle);
 
-    const topRatedCard = document.createElement('div');
-    topRatedCard.classList.add('feature-card', 'feature-card--compact');
-    topRatedCard.setAttribute('id', 'top-card');
-    topRated.appendChild(topRatedCard);
+    const topRatedSlider = document.createElement('div');
+    topRatedSlider.classList.add('feature-slider', 'feature-slider--compact');
+    topRatedSlider.setAttribute('role', 'group');
+    topRatedSlider.setAttribute('aria-roledescription', 'carrusel');
+    topRatedSlider.setAttribute('aria-label', 'Mejor Valoradas');
+    topRated.appendChild(topRatedSlider);
 
-    const topRatedCardScrim = document.createElement('div');
-    topRatedCardScrim.classList.add('feature-card__scrim');
-    topRatedCard.appendChild(topRatedCardScrim);
+    const topRatedTrack = document.createElement('div');
+    topRatedTrack.classList.add('feature-slider__track');
+    topRatedSlider.appendChild(topRatedTrack);
 
-    const topRatedCardContent = document.createElement('div');
-    topRatedCardContent.classList.add('feature-card__content');
-    topRatedCard.appendChild(topRatedCardContent);
+    const topFiveRated = topRatedMovies.results.slice(0, 5);
+    topFiveRated.forEach((movie) => {
+        const topRatedCard = document.createElement('div');
+        topRatedCard.classList.add('feature-card', 'feature-card--compact');
 
-    const topRatedCardTitle = document.createElement('h3');
-    topRatedCardTitle.classList.add('tag-list');
-    topRatedCardTitle.setAttribute('id', 'top-tags');
-    topRatedCardContent.appendChild(topRatedCardTitle);
+        const topRatedCardScrim = document.createElement('div');
+        topRatedCardScrim.classList.add('feature-card__scrim');
+        topRatedCard.appendChild(topRatedCardScrim);
 
-    const topRatedCardDesc = document.createElement('p');
-    topRatedCardDesc.classList.add('feature-card__desc');
-    topRatedCardDesc.setAttribute('id', 'top-desc');
-    topRatedCardContent.appendChild(topRatedCardDesc);
+        const topRatedCardContent = document.createElement('div');
+        topRatedCardContent.classList.add('feature-card__content');
+        topRatedCard.appendChild(topRatedCardContent);
 
-    const topRatedCardActions = document.createElement('div');
-    topRatedCardActions.classList.add('feature-card__actions');
-    topRatedCard.appendChild(topRatedCardActions);
+        const topRatedCardTags = document.createElement('div');
+        topRatedCardTags.classList.add('tag-list');
+        topRatedCardContent.appendChild(topRatedCardTags);
 
-    const topRatedCardButtons = document.createElement('div');
-    topRatedCardButtons.classList.add('feature-card__buttons');
-    topRatedCardActions.appendChild(topRatedCardButtons);
+        for (const tag of movie.genre_ids) {
+            const genre = genres.find((genre) => genre.id === tag);
+            if (!genre) continue; 
+            const tagItem = document.createElement('span');
+            tagItem.classList.add('tag');
+            tagItem.textContent = genre.name;
+            topRatedCardTags.appendChild(tagItem);
+        }
 
-    const topRatedCardButtonsPlay = document.createElement('button');
-    topRatedCardButtonsPlay.classList.add('play-button', 'play-button--accent');
-    topRatedCardButtonsPlay.setAttribute('id', 'top-play');
-    topRatedCardButtonsPlay.setAttribute('type', 'button');
-    topRatedCardButtonsPlay.setAttribute('aria-label', 'Play Low Tide Club');
-    topRatedCardButtons.appendChild(topRatedCardButtonsPlay);
+        const tagScore = document.createElement('span');
+        tagScore.classList.add('tag', 'tag--rating');
+        topRatedCardTags.appendChild(tagScore);
 
-    const topRatedCardButtonsCarousel = document.createElement('div');
-    topRatedCardButtonsCarousel.classList.add('carousel-controls');
-    topRatedCardButtons.appendChild(topRatedCardButtonsCarousel);
+        const tagScoreIcon = icon('star', 'tag__star');
+        tagScore.appendChild(tagScoreIcon);
 
-    const topRatedCardButtonsCarouselPrev = document.createElement('button');
-    topRatedCardButtonsCarouselPrev.classList.add('carousel-arrow');
-    topRatedCardButtonsCarouselPrev.setAttribute('type', 'button');
-    topRatedCardButtonsCarouselPrev.setAttribute('data-top', 'prev');
-    topRatedCardButtonsCarouselPrev.setAttribute('aria-label', 'Previous top rated');
-    topRatedCardButtonsCarousel.appendChild(topRatedCardButtonsCarouselPrev);
+        const tagScoreText = document.createElement('span');
+        tagScoreText.textContent = movie.vote_average.toFixed(1);
+        tagScore.appendChild(tagScoreText);
 
-    const topRatedCardButtonsCarouselNext = document.createElement('button');
-    topRatedCardButtonsCarouselNext.classList.add('carousel-arrow');
-    topRatedCardButtonsCarouselNext.setAttribute('type', 'button');
-    topRatedCardButtonsCarouselNext.setAttribute('data-top', 'next');
-    topRatedCardButtonsCarouselNext.setAttribute('aria-label', 'Next top rated');
-    topRatedCardButtonsCarousel.appendChild(topRatedCardButtonsCarouselNext);
+        const topRatedCardTitle = document.createElement('h3');
+        topRatedCardTitle.classList.add('feature-card__title');
+        topRatedCardTitle.textContent = movie.title;
+        topRatedCardContent.appendChild(topRatedCardTitle);
+
+        const topRatedCardDesc = document.createElement('p');
+        topRatedCardDesc.classList.add('feature-card__desc');
+        topRatedCardDesc.textContent = movie.overview;
+        topRatedCardContent.appendChild(topRatedCardDesc);        
+
+        const topRatedCardActions = document.createElement('div');
+        topRatedCardActions.classList.add('feature-card__actions');
+        topRatedCardContent.appendChild(topRatedCardActions);
+
+        const topRatedCardButtons = document.createElement('div');
+        topRatedCardButtons.classList.add('feature-card__buttons');
+        topRatedCardActions.appendChild(topRatedCardButtons);    
+
+        const topRatedCardButtonsDetails = document.createElement('button');
+        topRatedCardButtonsDetails.classList.add('btn', 'btn--icon');
+        topRatedCardButtonsDetails.setAttribute('type', 'button');
+        topRatedCardButtonsDetails.setAttribute('aria-label', 'Más información');
+        topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
+
+        const topRatedCardButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
+        topRatedCardButtonsDetails.appendChild(topRatedCardButtonsDetailsIcon);
+        topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
+
+        heroCards.push({ card: topRatedCard, movie });
+        setHeroArt(topRatedCard, movie);
+        topRatedTrack.appendChild(topRatedCard);
+    });
+
+    const topRatedControls = document.createElement('div');
+    topRatedControls.classList.add('carousel-controls', 'feature-slider__controls');
+    topRatedSlider.appendChild(topRatedControls);
+
+    const topRatedPrev = document.createElement('button');
+    topRatedPrev.classList.add('carousel-arrow');
+    topRatedPrev.setAttribute('type', 'button');
+    topRatedPrev.setAttribute('aria-label', 'Película anterior');
+    topRatedControls.appendChild(topRatedPrev);
+    topRatedPrev.appendChild(icon('arrow-left', 'carousel-arrow__icon'));
+
+    const topRatedNext = document.createElement('button');
+    topRatedNext.classList.add('carousel-arrow');
+    topRatedNext.setAttribute('type', 'button');
+    topRatedNext.setAttribute('aria-label', 'Siguiente película');
+    topRatedControls.appendChild(topRatedNext);
+    topRatedNext.appendChild(icon('arrow-right', 'carousel-arrow__icon'));
 
     const topRatedDots = document.createElement('div');
     topRatedDots.classList.add('carousel-dots');
-    topRatedDots.setAttribute('id', 'top-dots');
     topRatedDots.setAttribute('role', 'group');
-    topRatedDots.setAttribute('aria-label', 'Top rated pages');
-    topRatedCard.appendChild(topRatedDots);
+    topRatedDots.setAttribute('aria-label', 'Secciones de mejor valoradas');
+    topRated.appendChild(topRatedDots);
 
-    const topRatedDotsButton = document.createElement('button');
-    topRatedDotsButton.classList.add('carousel-dot', 'is-active');
-    topRatedDotsButton.setAttribute('type', 'button');
-    topRatedDotsButton.setAttribute('aria-label', 'Go to top rated 1');
-    topRatedDotsButton.setAttribute('aria-current', 'true');
-    topRatedDots.appendChild(topRatedDotsButton);
-
-    const topRatedDotsButton2 = document.createElement('button');
-    topRatedDotsButton2.classList.add('carousel-dot');
-    topRatedDotsButton2.setAttribute('type', 'button');
-    topRatedDotsButton2.setAttribute('aria-label', 'Go to top rated 2');
-    topRatedDots.appendChild(topRatedDotsButton2);
-
-    const topRatedDotsButton3 = document.createElement('button');
-    topRatedDotsButton3.classList.add('carousel-dot');
-    topRatedDotsButton3.setAttribute('type', 'button');
-    topRatedDotsButton3.setAttribute('aria-label', 'Go to top rated 3');
-    topRatedDots.appendChild(topRatedDotsButton3);
-
-    const topRatedDotsButton4 = document.createElement('button');
-    topRatedDotsButton4.classList.add('carousel-dot');
-    topRatedDotsButton4.setAttribute('type', 'button');
-    topRatedDotsButton4.setAttribute('aria-label', 'Go to top rated 4');
-    topRatedDots.appendChild(topRatedDotsButton4);  
+    setupSlider({
+        slider: topRatedSlider,
+        track: topRatedTrack,
+        controls: topRatedControls,
+        prevButton: topRatedPrev,
+        nextButton: topRatedNext,
+        dotsContainer: topRatedDots,
+        dotLabel: 'Ir a la película',
+    });
 
     // Recommended
     const recommended = document.createElement('section');
     recommended.classList.add('recommended');
     recommended.setAttribute('aria-labelledby', 'recommended-title');
-    heroRow.appendChild(recommended);
+    main.appendChild(recommended);
 
     const recommendedHeader = document.createElement('div');
     recommendedHeader.classList.add('recommended__header');
