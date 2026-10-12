@@ -79,6 +79,7 @@ function setHeroArt(card, movie, preload = false) {
     const paint = () => {
         card.dataset.artUrl = url;
         card.style.setProperty('--art', `url("${url}") center / cover no-repeat`);
+        card.classList.add('is-loaded');
     };
 
     if (!preload) {
@@ -231,7 +232,13 @@ async function printHome() {
     renderThemeButton();
     applyTheme(theme);
 
-    lightModeButton.addEventListener('click', () => applyTheme(theme === 'dark' ? 'light' : 'dark', true));
+    lightModeButton.addEventListener('click', (event) => {
+        const next = theme === 'dark' ? 'light' : 'dark';
+        if (!document.startViewTransition) return applyTheme(next, true);
+        document.documentElement.style.setProperty('--vt-x', `${event.clientX}px`);
+        document.documentElement.style.setProperty('--vt-y', `${event.clientY}px`);
+        document.startViewTransition(() => applyTheme(next, true));
+    });
 
     const heroRow = document.createElement('div');
     heroRow.classList.add('hero-row');
@@ -263,74 +270,7 @@ async function printHome() {
     heroCards.length = 0;
     const topFive = upcomingMovies.slice(0, 5);
     topFive.forEach((movie) => {
-        const upcomingMovieCard = document.createElement('div');
-        upcomingMovieCard.classList.add('feature-card');
-
-        const upcomingMovieCardScrim = document.createElement('div');
-        upcomingMovieCardScrim.classList.add('feature-card__scrim');
-        upcomingMovieCard.appendChild(upcomingMovieCardScrim);
-
-        const upcomingMovieCardContent = document.createElement('div');
-        upcomingMovieCardContent.classList.add('feature-card__content');
-        upcomingMovieCard.appendChild(upcomingMovieCardContent);
-
-        const upcomingMovieTag = document.createElement('div');
-        upcomingMovieTag.classList.add('tag-list');
-        upcomingMovieCardContent.appendChild(upcomingMovieTag);
-
-        movie.genres.forEach((genreId) => {
-            const genre = genres.find((genre) => genre.id === genreId);
-            if (genre) {
-                const tagItem = document.createElement('span');
-                tagItem.classList.add('tag');
-                tagItem.textContent = genre.name;
-                upcomingMovieTag.appendChild(tagItem);              
-            } 
-        });
-
-        const upcomingMovieTitle = document.createElement('h3');
-        upcomingMovieTitle.classList.add('feature-card__title');
-        upcomingMovieTitle.textContent = movie.title;
-        upcomingMovieCardContent.appendChild(upcomingMovieTitle);
-
-        const upcomingMovieDesc = document.createElement('p');
-        upcomingMovieDesc.classList.add('feature-card__desc');
-        upcomingMovieDesc.textContent = movie.overview;
-        upcomingMovieCardContent.appendChild(upcomingMovieDesc);
-
-        const upcomingMovieActions = document.createElement('div');
-        upcomingMovieActions.classList.add('feature-card__actions');
-        upcomingMovieCardContent.appendChild(upcomingMovieActions);
-
-        const upcomingMovieButtons = document.createElement('div');
-        upcomingMovieButtons.classList.add('feature-card__buttons');
-        upcomingMovieActions.appendChild(upcomingMovieButtons);                        
-
-        const upcomingMovieButtonsRelease = document.createElement('button');
-        upcomingMovieButtonsRelease.classList.add('btn', 'btn--primary');
-        upcomingMovieButtonsRelease.setAttribute('type', 'button');
-        upcomingMovieButtonsRelease.setAttribute('aria-label', 'Ver el estreno');
-        upcomingMovieButtons.appendChild(upcomingMovieButtonsRelease);
-
-        const upcomingMovieButtonsReleaseIcon = icon('play-wide', 'icon--filled btn__icon');
-        upcomingMovieButtonsRelease.appendChild(upcomingMovieButtonsReleaseIcon);
-
-        const upcomingMovieButtonsReleaseText = document.createElement('span');
-        upcomingMovieButtonsReleaseText.textContent = movie.releaseDate ?? 'Próximamente';
-        upcomingMovieButtonsRelease.appendChild(upcomingMovieButtonsReleaseText);
-
-        const upcomingMovieButtonsDetails = document.createElement('button');
-        upcomingMovieButtonsDetails.classList.add('btn', 'btn--icon');
-        upcomingMovieButtonsDetails.setAttribute('type', 'button');
-        upcomingMovieButtonsDetails.setAttribute('aria-label', 'Más información');
-
-        const upcomingMovieButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
-        upcomingMovieButtonsDetails.appendChild(upcomingMovieButtonsDetailsIcon);
-        upcomingMovieButtons.appendChild(upcomingMovieButtonsDetails);
-
-        heroCards.push({ card: upcomingMovieCard, movie });
-        setHeroArt(upcomingMovieCard, movie);
-        upcomingTrack.appendChild(upcomingMovieCard);
+        movie.buildUpcomingCard(heroCards, upcomingTrack, genres, setHeroArt, icon);
     });
 
     const upcomingMovieButtonsCarousel = document.createElement('div');
@@ -400,72 +340,7 @@ async function printHome() {
 
     const topFiveRated = topRatedMovies.slice(0, 5);
     topFiveRated.forEach((movie) => {
-        const topRatedCard = document.createElement('div');
-        topRatedCard.classList.add('feature-card', 'feature-card--compact');
-
-        const topRatedCardScrim = document.createElement('div');
-        topRatedCardScrim.classList.add('feature-card__scrim');
-        topRatedCard.appendChild(topRatedCardScrim);
-
-        const topRatedCardContent = document.createElement('div');
-        topRatedCardContent.classList.add('feature-card__content');
-        topRatedCard.appendChild(topRatedCardContent);
-
-        const topRatedCardTags = document.createElement('div');
-        topRatedCardTags.classList.add('tag-list');
-        topRatedCardContent.appendChild(topRatedCardTags);
-
-        for (const tag of movie.genres) {
-            const genre = genres.find((genre) => genre.id === tag);
-            if (!genre) continue; 
-            const tagItem = document.createElement('span');
-            tagItem.classList.add('tag');
-            tagItem.textContent = genre.name;
-            topRatedCardTags.appendChild(tagItem);
-        }
-
-        const tagScore = document.createElement('span');
-        tagScore.classList.add('tag', 'tag--rating');
-        topRatedCardTags.appendChild(tagScore);
-
-        const tagScoreIcon = icon('star', 'tag__star');
-        tagScore.appendChild(tagScoreIcon);
-
-        const tagScoreText = document.createElement('span');
-        tagScoreText.textContent = movie.score.toFixed(1);
-        tagScore.appendChild(tagScoreText);
-
-        const topRatedCardTitle = document.createElement('h3');
-        topRatedCardTitle.classList.add('feature-card__title');
-        topRatedCardTitle.textContent = movie.title;
-        topRatedCardContent.appendChild(topRatedCardTitle);
-
-        const topRatedCardDesc = document.createElement('p');
-        topRatedCardDesc.classList.add('feature-card__desc');
-        topRatedCardDesc.textContent = movie.overview;
-        topRatedCardContent.appendChild(topRatedCardDesc);        
-
-        const topRatedCardActions = document.createElement('div');
-        topRatedCardActions.classList.add('feature-card__actions');
-        topRatedCardContent.appendChild(topRatedCardActions);
-
-        const topRatedCardButtons = document.createElement('div');
-        topRatedCardButtons.classList.add('feature-card__buttons');
-        topRatedCardActions.appendChild(topRatedCardButtons);    
-
-        const topRatedCardButtonsDetails = document.createElement('button');
-        topRatedCardButtonsDetails.classList.add('btn', 'btn--icon');
-        topRatedCardButtonsDetails.setAttribute('type', 'button');
-        topRatedCardButtonsDetails.setAttribute('aria-label', 'Más información');
-        topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
-
-        const topRatedCardButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
-        topRatedCardButtonsDetails.appendChild(topRatedCardButtonsDetailsIcon);
-        topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
-
-        heroCards.push({ card: topRatedCard, movie });
-        setHeroArt(topRatedCard, movie);
-        topRatedTrack.appendChild(topRatedCard);
+        movie.buildRatedCard(heroCards, topRatedTrack, genres, setHeroArt, icon);
     });
 
     const topRatedControls = document.createElement('div');
@@ -558,76 +433,15 @@ async function printHome() {
     popularAllButton.textContent = 'Ver más';
     popularHeader.appendChild(popularAllButton);
 
-    const popularMoviesList = (await getPopularMovies()).results.map((movie) => Movie.fromResponse(movie));
+    const moviesList = (await getPopularMovies()).results.map((movie) => Movie.fromResponse(movie));
 
-    const popularMovieGrid = document.createElement('div');
-    popularMovieGrid.classList.add('movie-grid');
-    popularMovieGrid.setAttribute('id', 'movie-grid');
-    popular.appendChild(popularMovieGrid);
+    const movieGrid = document.createElement('div');
+    movieGrid.classList.add('movie-grid');
+    movieGrid.setAttribute('id', 'movie-grid');
+    popular.appendChild(movieGrid);
 
-    popularMoviesList.forEach((movie) => {
-        const popularMovieCard = document.createElement('article');
-        popularMovieCard.classList.add('movie-card');
-
-        const popularMovieCardScrim = document.createElement('div');
-        popularMovieCardScrim.classList.add('movie-card__scrim');
-        popularMovieCard.appendChild(popularMovieCardScrim);
-
-        const popularMovieCardBookmark = document.createElement('button');
-        popularMovieCardBookmark.classList.add('movie-card__bookmark');
-        popularMovieCardBookmark.setAttribute('type', 'button');
-        popularMovieCardBookmark.setAttribute('aria-label', 'Marcar como visto');
-        popularMovieCardBookmark.addEventListener('click', () => console.log('marcar como visto'));
-        popularMovieCard.appendChild(popularMovieCardBookmark);
-
-        const popularMovieCardBookmarkIcon = icon('bookmark', 'movie-card__bookmark-icon');
-        popularMovieCardBookmark.appendChild(popularMovieCardBookmarkIcon);
-
-        const popularMovieCardContent = document.createElement('div');
-        popularMovieCardContent.classList.add('movie-card__content');
-        popularMovieCard.appendChild(popularMovieCardContent);
-
-        const popularMovieCardInfo = document.createElement('div');
-        popularMovieCardInfo.classList.add('movie-card__info');
-        popularMovieCardContent.appendChild(popularMovieCardInfo);
-
-        const genreList = movie.genres.slice(0, 2).map((genreId) => {
-            const genre = genres.find((genre) => genre.id === genreId);
-            if (!genre) return null;
-            return genre.name;
-        });
-
-        genreList.forEach((genre) => {
-            const popularMovieCardInfoChip = document.createElement('span');
-            popularMovieCardInfoChip.classList.add('tag', 'tag--small');
-            popularMovieCardInfoChip.textContent = genre;
-            popularMovieCardInfo.appendChild(popularMovieCardInfoChip);
-        });
-
-        const popularMovieCardTitle = document.createElement('h3');
-        popularMovieCardTitle.classList.add('movie-card__title');
-        popularMovieCardTitle.textContent = movie.title;
-        popularMovieCardInfo.appendChild(popularMovieCardTitle);
-
-        const popularMovieCardDesc = document.createElement('p');
-        popularMovieCardDesc.classList.add('movie-card__desc');
-        popularMovieCardDesc.textContent = movie.overview;
-        popularMovieCardInfo.appendChild(popularMovieCardDesc);
-
-        const popularMovieCardButton = document.createElement('button');
-        popularMovieCardButton.classList.add('play-button', 'play-button--glass');
-        popularMovieCardButton.setAttribute('type', 'button');
-        popularMovieCardButton.setAttribute('aria-label', 'Mas información');
-        popularMovieCardButton.addEventListener('click', () => console.log('mas información'));
-        popularMovieCardContent.appendChild(popularMovieCardButton);
-
-        const popularMovieCardButtonIcon = icon('more', 'icon--filled btn__icon');
-        popularMovieCardButton.appendChild(popularMovieCardButtonIcon);
-
-        heroCards.push({ card: popularMovieCard, movie });
-        setHeroArt(popularMovieCard, movie);
-        popularMovieGrid.appendChild(popularMovieCard);
-
+    moviesList.forEach((movie, index) => {
+        movie.buildGeneralCard(movieGrid, index, genres, heroCards, setHeroArt, icon);
     });
 
     const popularEmptyState = document.createElement('p');
@@ -640,6 +454,14 @@ async function printHome() {
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {
     const slides = [...track.children];
     let current = 0;
+
+    let timer = null;
+    const start = () => { clearInterval(timer); timer = setInterval(() => goTo(current + 1), 6000); };
+    const stop = () => clearInterval(timer);
+    slider.addEventListener('mouseenter', stop);
+    slider.addEventListener('mouseleave', start);
+    slider.addEventListener('focusin', stop);
+    slider.addEventListener('focusout', start);
 
     slides.forEach((slide, index) => {
         slide.setAttribute('role', 'group');
@@ -663,6 +485,7 @@ function setupSlider({ slider, track, controls, prevButton, nextButton, dotsCont
         slider.style.setProperty('--index', current);
 
         slides.forEach((slide, i) => slide.toggleAttribute('inert', i !== current));
+        slides.forEach((slide, i) => slide.classList.toggle('is-active', i === current));
         dots.forEach((dot, i) => {
             dot.classList.toggle('is-active', i === current);
             if (i === current) {
@@ -671,6 +494,7 @@ function setupSlider({ slider, track, controls, prevButton, nextButton, dotsCont
                 dot.removeAttribute('aria-current');
             }
         });
+        start();
     }
 
     prevButton.addEventListener('click', () => goTo(current - 1));
