@@ -88,8 +88,12 @@ async function getTopRatedMovies() {
     return (await request('/movie/top_rated', { sort_by: 'vote_average.desc', 'vote_count.gte': 1000000, include_adult: true }));
 }
 
-async function getPopularMovies() {
-    return (await request('/movie/popular', { sort_by: 'popularity.desc', include_adult: true }));
+async function getPopularMovies(page = 1) {
+    return (await request('/movie/popular', { sort_by: 'popularity.desc', page, include_adult: true }));
+}
+
+async function getPopularMoviesByGenre(genreId, page = 1) {
+    return (await request('/discover/movie', { "with_genres": genreId, page, sort_by: 'popularity.desc', include_adult: true }));
 }
 
 async function getGenres() {
@@ -97,4 +101,4 @@ async function getGenres() {
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
   }
 
-export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies };
+export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre };

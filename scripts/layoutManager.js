@@ -1,4 +1,4 @@
-import { getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies } from './data/apiLoader.js';
+import { getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre } from './data/apiLoader.js';
 import { getHeroImageUrl } from './utils.js';
 import Genre from './data/models/genre.js';
 import Movie from './data/models/movie.js';
@@ -25,6 +25,8 @@ let genres = [];
 const THEME_KEY = 'cinema-theme';
 let theme = 'dark';
 let selectedGenre = null;
+let popularPage = 1;
+let popularRequestId = 0;
 
 // DOM
 const app = document.querySelector('body');
@@ -33,6 +35,7 @@ const heroCards = [];
 let resizeTimer = null;
 let themeIcon = null;
 let themeButton = null;
+let movieGrid = null;
 
 // Utils
 function applyAttrs(node, attrs) {
@@ -106,6 +109,17 @@ function applyGenreFilter(genreId) {
     const recommendedChips = document.querySelector('#genre-chips');
     recommendedChips.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'));
     recommendedChips.querySelector(`button[data-genre="${genreId}"]`).classList.add('is-active');
+
+    if(selectedGenre === -1) {
+        loadPopularPage(1);
+    } else {
+        loadGenreFilteredPage(1);
+    }
+}
+
+function getRandomItemsShuffle(arr, count) {
+  const shuffled = [...arr].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
 }
 
 // DOM EVENTS
@@ -378,10 +392,15 @@ async function printHome() {
     });
 
     // Recommended
+    buildMoviesList(main);
+}
+
+async function buildMoviesList(boxContainer) {
+    const requestId = ++popularRequestId;
     const popular = document.createElement('section');
     popular.classList.add('recommended');
     popular.setAttribute('aria-labelledby', 'recommended-title');
-    main.appendChild(popular);
+    boxContainer.appendChild(popular);
 
     const popularHeader = document.createElement('div');
     popularHeader.classList.add('recommended__header');
@@ -410,7 +429,7 @@ async function printHome() {
     popularChipsButtonAll.addEventListener('click', () => applyGenreFilter(-1));
     popularChips.appendChild(popularChipsButtonAll);
 
-    const genreList = genres.slice(0, 6);
+    const genreList = getRandomItemsShuffle(genres, 6);
 
     genreList.forEach((genre) => {
         const popularChipsButton = document.createElement('button');
@@ -425,20 +444,31 @@ async function printHome() {
         popularChips.appendChild(popularChipsButton);
     });
 
-    const popularAllButton = document.createElement('button');
-    popularAllButton.classList.add('btn', 'btn--soft');
-    popularAllButton.setAttribute('id', 'see-all');
-    popularAllButton.setAttribute('type', 'button');
-    popularAllButton.setAttribute('aria-pressed', 'false');
-    popularAllButton.textContent = 'Ver más';
-    popularHeader.appendChild(popularAllButton);
+    loadPopularPage(1, popular);
+}
 
-    const moviesList = (await getPopularMovies()).results.map((movie) => Movie.fromResponse(movie));
+async function loadPopularPage(page, contentBox) {
+    const requestId = ++popularRequestId;
+    const popular = contentBox || document.querySelector('.recommended');
 
-    const movieGrid = document.createElement('div');
-    movieGrid.classList.add('movie-grid');
-    movieGrid.setAttribute('id', 'movie-grid');
-    popular.appendChild(movieGrid);
+    if (popularRequestId !== requestId) return;
+    const moviesData = await getPopularMovies(page);
+    popularPage = moviesData.page;
+    const totalPages = Math.max(moviesData.results.length, 499);
+
+    const moviesList = moviesData.results.map((movie) => Movie.fromResponse(movie));
+
+    if(!movieGrid) {
+        movieGrid = document.createElement('div');
+        movieGrid.classList.add('movie-grid');
+        movieGrid.setAttribute('id', 'movie-grid');
+        popular.appendChild(movieGrid);
+    } else {
+        for (let i = heroCards.length - 1; i >= 0; i--) {
+            if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
+        }
+        movieGrid.replaceChildren();
+    }
 
     moviesList.forEach((movie, index) => {
         movie.buildGeneralCard(movieGrid, index, genres, heroCards, setHeroArt, icon);
@@ -449,6 +479,136 @@ async function printHome() {
     popularEmptyState.setAttribute('id', 'empty-state');
     popularEmptyState.hidden = true;
     popular.appendChild(popularEmptyState);
+
+    renderPagination(popular, popularPage, totalPages, goToPopularPage);
+}
+
+function goToPopularPage(page) {
+    loadPopularPage(page);
+    document.querySelector('.recommended').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadGenreFilteredPage(page, contentBox) {
+    const requestId = ++popularRequestId;
+    const popular = contentBox || document.querySelector('.recommended');
+
+    if (popularRequestId !== requestId) return;
+    const moviesData = await getPopularMoviesByGenre(selectedGenre, page);
+    popularPage = moviesData.page;
+    const totalPages = Math.max(moviesData.results.length, 499);
+
+    const moviesList = moviesData.results.map((movie) => Movie.fromResponse(movie));
+
+    if(!movieGrid) {
+        movieGrid = document.createElement('div');
+        movieGrid.classList.add('movie-grid');
+        movieGrid.setAttribute('id', 'movie-grid');
+        popular.appendChild(movieGrid);
+    } else {
+        for (let i = heroCards.length - 1; i >= 0; i--) {
+            if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
+        }
+        movieGrid.replaceChildren();
+    }
+
+    moviesList.forEach((movie, index) => {
+        movie.buildGeneralCard(movieGrid, index, genres, heroCards, setHeroArt, icon);
+    });
+
+    const popularEmptyState = document.createElement('p');
+    popularEmptyState.classList.add('empty-state');
+    popularEmptyState.setAttribute('id', 'empty-state');
+    popularEmptyState.hidden = true;
+    popular.appendChild(popularEmptyState);
+
+    renderPagination(popular, popularPage, totalPages, goToGenreFilteredPage);
+}
+
+function goToGenreFilteredPage(page) {
+    loadGenreFilteredPage(page);
+    document.querySelector('.recommended').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function getPageWindow(current, total, radius = 2) {
+    const pages = [1];
+    const start = Math.max(2, current - radius);
+    const end = Math.min(total - 1, current + radius);
+    if (start > 2) pages.push('…');
+    for (let page = start; page <= end; page++) pages.push(page);
+    if (end < total - 1) pages.push('…');
+    if (total > 1) pages.push(total);
+    return pages;
+}
+
+function createPageButton(page, label, disabled = false) {
+    const button = document.createElement('button');
+    button.classList.add('pagination__button');
+    button.setAttribute('type', 'button');
+    button.setAttribute('data-page', page);
+    button.setAttribute('aria-label', label);
+    button.disabled = disabled;
+    return button;
+}
+
+function renderPagination(container, current, total, onPageChange) {
+    let pagination = container.querySelector('.pagination');
+
+    // Created once; later calls just redraw the buttons
+    if (!pagination) {
+        pagination = document.createElement('nav');
+        pagination.classList.add('pagination');
+        pagination.setAttribute('aria-label', 'Paginación');
+        pagination.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-page]');
+            if (!button || button.disabled || button.hasAttribute('aria-current')) return;
+            onPageChange(Number(button.dataset.page));
+        });
+        container.appendChild(pagination);
+    } else {        
+        // redraw 
+        pagination.remove();
+        pagination = document.createElement('nav');
+        pagination.classList.add('pagination');
+        pagination.setAttribute('aria-label', 'Paginación');
+        pagination.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-page]');
+            if (!button || button.disabled || button.hasAttribute('aria-current')) return;
+            onPageChange(Number(button.dataset.page));
+        });
+        container.appendChild(pagination);
+    }
+
+    pagination.replaceChildren();
+    pagination.hidden = total < 2;
+
+    const prevButton = createPageButton(current - 1, 'Página anterior', current === 1);
+    prevButton.classList.add('pagination__arrow');
+    prevButton.appendChild(icon('arrow-left', 'pagination__icon'));
+    pagination.appendChild(prevButton);
+
+    getPageWindow(current, total).forEach((item) => {
+        if (item === '…') {
+            const ellipsis = document.createElement('span');
+            ellipsis.classList.add('pagination__ellipsis');
+            ellipsis.setAttribute('aria-hidden', 'true');
+            ellipsis.textContent = '…';
+            pagination.appendChild(ellipsis);
+            return;
+        }
+
+        const pageButton = createPageButton(item, `Página ${item}`);
+        pageButton.textContent = item;
+        if (item === current) {
+            pageButton.classList.add('is-active');
+            pageButton.setAttribute('aria-current', 'page');
+        }
+        pagination.appendChild(pageButton);
+    });
+
+    const nextButton = createPageButton(current + 1, 'Página siguiente', current === total);
+    nextButton.classList.add('pagination__arrow');
+    nextButton.appendChild(icon('arrow-right', 'pagination__icon'));
+    pagination.appendChild(nextButton);
 }
 
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {
