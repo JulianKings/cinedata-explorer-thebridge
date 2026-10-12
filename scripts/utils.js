@@ -39,8 +39,8 @@ function pickImageSize(type) {
 
 function getHeroImageUrl(movie) {
     const otherType = HERO_IMAGE_TYPE === 'poster' ? 'backdrop' : 'poster';
-    const type = movie[`${HERO_IMAGE_TYPE}_path`] ? HERO_IMAGE_TYPE : otherType;
-    const path = movie[`${type}_path`];
+    const type = movie[`${HERO_IMAGE_TYPE}Path`] ? HERO_IMAGE_TYPE : otherType;
+    const path = movie[`${type}Path`];
     if (!path) return null;
     return imageUrl(path, pickImageSize(type));
 }

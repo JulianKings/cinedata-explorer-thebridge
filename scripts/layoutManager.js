@@ -1,5 +1,7 @@
-import { getUpcomingMovies, getGenres, getTopRatedMovies } from './data/apiLoader.js';
+import { getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies } from './data/apiLoader.js';
 import { getHeroImageUrl } from './utils.js';
+import Genre from './data/models/genre.js';
+import Movie from './data/models/movie.js';
 // Data
 const pages = [
     {
@@ -22,6 +24,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 let genres = [];
 const THEME_KEY = 'cinema-theme';
 let theme = 'dark';
+let selectedGenre = null;
 
 // DOM
 const app = document.querySelector('body');
@@ -97,6 +100,13 @@ function loadTheme() {
     }
 }
 
+function applyGenreFilter(genreId) {
+    selectedGenre = genreId;
+    const recommendedChips = document.querySelector('#genre-chips');
+    recommendedChips.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'));
+    recommendedChips.querySelector(`button[data-genre="${genreId}"]`).classList.add('is-active');
+}
+
 // DOM EVENTS
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
@@ -136,13 +146,13 @@ const printBasicLayout = (currentPage) => {
     app.appendChild(sidebar);
 
     const logo = svg('svg', { class: 'sidebar__logo', viewBox: '0 0 30 30', 'aria-hidden': 'true' },
-      svg('circle', { class: 'sidebar__logo-ring', cx: 15, cy: 15, r: 14 }),
-      svg('path', { class: 'sidebar__logo-play', d: 'M12 9.5v11l9-5.5-9-5.5z' })
+        svg('circle', { class: 'sidebar__logo-ring', cx: 15, cy: 15, r: 14 }),
+        svg('path', { class: 'sidebar__logo-play', d: 'M12 9.5v11l9-5.5-9-5.5z' })
     );
     sidebar.appendChild(logo);    
 
     const brand = h('a', { class: 'sidebar__brand', href: '#' },
-      logo, h('span', { class: 'sidebar__brand-name', text: 'Cinema Explorer' })
+        logo, h('span', { class: 'sidebar__brand-name', text: 'Cinema Explorer' })
     );
     sidebar.appendChild(brand);
 
@@ -173,7 +183,7 @@ const printBasicLayout = (currentPage) => {
     main.classList.add('main');
     app.appendChild(main);
 
-    loadTheme();
+    theme = loadTheme();
 }
 
 async function appendContent(contentType) {
@@ -186,15 +196,14 @@ async function appendContent(contentType) {
 }
 
 async function printHome() {
-    genres = await getGenres();
-    // Topbar
-    const topbar = document.createElement('header');
-    topbar.classList.add('topbar');
-    main.appendChild(topbar);
+    genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
+    const topBar = document.createElement('header');
+    topBar.classList.add('topbar');
+    main.appendChild(topBar);
 
     const search = document.createElement('label');
     search.classList.add('search');
-    topbar.appendChild(search);
+    topBar.appendChild(search);
 
     const searchIcon = icon('search', 'search__icon');
     search.appendChild(searchIcon);
@@ -212,7 +221,7 @@ async function printHome() {
     lightModeButton.classList.add('icon-button');
     lightModeButton.setAttribute('type', 'button');
     lightModeButton.setAttribute('aria-label', 'Modo Oscuro/Claro');
-    topbar.appendChild(lightModeButton);
+    topBar.appendChild(lightModeButton);
 
     const lightModeButtonIcon = icon('sun', 'icon');
     lightModeButton.appendChild(lightModeButtonIcon);
@@ -224,13 +233,10 @@ async function printHome() {
 
     lightModeButton.addEventListener('click', () => applyTheme(theme === 'dark' ? 'light' : 'dark', true));
 
-    // Topbar
     const heroRow = document.createElement('div');
     heroRow.classList.add('hero-row');
-    main.appendChild(heroRow);
-
-    // New releases    
-    const upcomingMovies = await getUpcomingMovies();
+    main.appendChild(heroRow);  
+    const upcomingMovies = (await getUpcomingMovies()).results.map((movie) => Movie.fromResponse(movie));
 
     const upcomingMovieBox = document.createElement('section');
     upcomingMovieBox.classList.add('feature', 'feature--primary');
@@ -255,7 +261,7 @@ async function printHome() {
     upcomingSlider.appendChild(upcomingTrack);
 
     heroCards.length = 0;
-    const topFive = upcomingMovies.results.slice(0, 5);
+    const topFive = upcomingMovies.slice(0, 5);
     topFive.forEach((movie) => {
         const upcomingMovieCard = document.createElement('div');
         upcomingMovieCard.classList.add('feature-card');
@@ -272,7 +278,7 @@ async function printHome() {
         upcomingMovieTag.classList.add('tag-list');
         upcomingMovieCardContent.appendChild(upcomingMovieTag);
 
-        movie.genre_ids.forEach((genreId) => {
+        movie.genres.forEach((genreId) => {
             const genre = genres.find((genre) => genre.id === genreId);
             if (genre) {
                 const tagItem = document.createElement('span');
@@ -310,7 +316,7 @@ async function printHome() {
         upcomingMovieButtonsRelease.appendChild(upcomingMovieButtonsReleaseIcon);
 
         const upcomingMovieButtonsReleaseText = document.createElement('span');
-        upcomingMovieButtonsReleaseText.textContent = movie.release_date;
+        upcomingMovieButtonsReleaseText.textContent = movie.releaseDate ?? 'Próximamente';
         upcomingMovieButtonsRelease.appendChild(upcomingMovieButtonsReleaseText);
 
         const upcomingMovieButtonsDetails = document.createElement('button');
@@ -369,7 +375,7 @@ async function printHome() {
     });
 
     // Top rated
-    const topRatedMovies = await getTopRatedMovies();
+    const topRatedMovies = (await getTopRatedMovies()).results.map((movie) => Movie.fromResponse(movie));
     const topRated = document.createElement('section');
     topRated.classList.add('feature', 'feature--secondary');
     topRated.setAttribute('aria-labelledby', 'top-rated-title');
@@ -392,7 +398,7 @@ async function printHome() {
     topRatedTrack.classList.add('feature-slider__track');
     topRatedSlider.appendChild(topRatedTrack);
 
-    const topFiveRated = topRatedMovies.results.slice(0, 5);
+    const topFiveRated = topRatedMovies.slice(0, 5);
     topFiveRated.forEach((movie) => {
         const topRatedCard = document.createElement('div');
         topRatedCard.classList.add('feature-card', 'feature-card--compact');
@@ -409,7 +415,7 @@ async function printHome() {
         topRatedCardTags.classList.add('tag-list');
         topRatedCardContent.appendChild(topRatedCardTags);
 
-        for (const tag of movie.genre_ids) {
+        for (const tag of movie.genres) {
             const genre = genres.find((genre) => genre.id === tag);
             if (!genre) continue; 
             const tagItem = document.createElement('span');
@@ -426,7 +432,7 @@ async function printHome() {
         tagScore.appendChild(tagScoreIcon);
 
         const tagScoreText = document.createElement('span');
-        tagScoreText.textContent = movie.vote_average.toFixed(1);
+        tagScoreText.textContent = movie.score.toFixed(1);
         tagScore.appendChild(tagScoreText);
 
         const topRatedCardTitle = document.createElement('h3');
@@ -497,94 +503,138 @@ async function printHome() {
     });
 
     // Recommended
-    const recommended = document.createElement('section');
-    recommended.classList.add('recommended');
-    recommended.setAttribute('aria-labelledby', 'recommended-title');
-    main.appendChild(recommended);
+    const popular = document.createElement('section');
+    popular.classList.add('recommended');
+    popular.setAttribute('aria-labelledby', 'recommended-title');
+    main.appendChild(popular);
 
-    const recommendedHeader = document.createElement('div');
-    recommendedHeader.classList.add('recommended__header');
-    recommended.appendChild(recommendedHeader);
+    const popularHeader = document.createElement('div');
+    popularHeader.classList.add('recommended__header');
+    popular.appendChild(popularHeader);
 
-    const recommendedTitle = document.createElement('h2');
-    recommendedTitle.classList.add('recommended__title');
-    recommendedTitle.setAttribute('id', 'recommended-title');
-    recommendedTitle.textContent = 'Lo más popular';
-    recommended.appendChild(recommendedTitle);
+    const popularTitle = document.createElement('h2');
+    popularTitle.classList.add('recommended__title');
+    popularTitle.setAttribute('id', 'recommended-title');
+    popularTitle.textContent = 'Lo más popular';
+    popularHeader.appendChild(popularTitle);
 
-    const recommendedChips = document.createElement('div');
-    recommendedChips.classList.add('chips');
-    recommendedChips.setAttribute('id', 'genre-chips');
-    recommendedChips.setAttribute('role', 'group');
-    recommendedChips.setAttribute('aria-label', 'Filter by genre');
-    recommended.appendChild(recommendedChips);
+    const popularChips = document.createElement('div');
+    popularChips.classList.add('chips');
+    popularChips.setAttribute('id', 'genre-chips');
+    popularChips.setAttribute('role', 'group');
+    popularChips.setAttribute('aria-label', 'Filter by genre');
+    popularHeader.appendChild(popularChips);
 
-    const recommendedChipsButton = document.createElement('button');
-    recommendedChipsButton.classList.add('chip', 'is-active');
-    recommendedChipsButton.setAttribute('type', 'button');
-    recommendedChipsButton.setAttribute('data-genre', 'All');
-    recommendedChipsButton.setAttribute('aria-pressed', 'true');
-    recommendedChipsButton.textContent = 'Todo';
-    recommendedChips.appendChild(recommendedChipsButton);
+    const popularChipsButtonAll = document.createElement('button');
+    popularChipsButtonAll.classList.add('chip');
+    if(!selectedGenre || selectedGenre === -1) popularChipsButtonAll.classList.add('is-active');
+    popularChipsButtonAll.setAttribute('type', 'button');
+    popularChipsButtonAll.setAttribute('data-genre', -1);
+    popularChipsButtonAll.setAttribute('aria-pressed', 'true');
+    popularChipsButtonAll.textContent = 'Ver Todo';
+    popularChipsButtonAll.addEventListener('click', () => applyGenreFilter(-1));
+    popularChips.appendChild(popularChipsButtonAll);
 
-    const recommendedChipsButton2 = document.createElement('button');
-    recommendedChipsButton2.classList.add('chip');
-    recommendedChipsButton2.setAttribute('type', 'button');
-    recommendedChipsButton2.setAttribute('data-genre', 'Comedy');
-    recommendedChipsButton2.setAttribute('aria-pressed', 'false');
-    recommendedChipsButton2.textContent = 'Genero 1';
-    recommendedChips.appendChild(recommendedChipsButton2);
+    const genreList = genres.slice(0, 6);
 
-    const recommendedChipsButton3 = document.createElement('button');
-    recommendedChipsButton3.classList.add('chip');
-    recommendedChipsButton3.setAttribute('type', 'button');
-    recommendedChipsButton3.setAttribute('data-genre', 'Action');
-    recommendedChipsButton3.setAttribute('aria-pressed', 'false');
-    recommendedChipsButton3.textContent = 'Genero 2';
-    recommendedChips.appendChild(recommendedChipsButton3);
+    genreList.forEach((genre) => {
+        const popularChipsButton = document.createElement('button');
+        popularChipsButton.classList.add('chip');
+        if(selectedGenre === genre.id) popularChipsButton.classList.add('is-active');
+        popularChipsButton.setAttribute('type', 'button');
+        popularChipsButton.setAttribute('data-genre', genre.id);
+        popularChipsButton.setAttribute('aria-pressed', 'false');
+        popularChipsButton.textContent = genre.name;
 
-    const recommendedChipsButton4 = document.createElement('button');
-    recommendedChipsButton4.classList.add('chip');
-    recommendedChipsButton4.setAttribute('type', 'button');
-    recommendedChipsButton4.setAttribute('data-genre', 'Horror');
-    recommendedChipsButton4.setAttribute('aria-pressed', 'false');
-    recommendedChipsButton4.textContent = 'Genero 3';
-    recommendedChips.appendChild(recommendedChipsButton4);
+        popularChipsButton.addEventListener('click', () => applyGenreFilter(genre.id));
+        popularChips.appendChild(popularChipsButton);
+    });
 
-    const recommendedChipsButton5 = document.createElement('button');
-    recommendedChipsButton5.classList.add('chip');
-    recommendedChipsButton5.setAttribute('type', 'button');
-    recommendedChipsButton5.setAttribute('data-genre', 'Drama');
-    recommendedChipsButton5.setAttribute('aria-pressed', 'false');
-    recommendedChipsButton5.textContent = 'Genero 4';
-    recommendedChips.appendChild(recommendedChipsButton5);
+    const popularAllButton = document.createElement('button');
+    popularAllButton.classList.add('btn', 'btn--soft');
+    popularAllButton.setAttribute('id', 'see-all');
+    popularAllButton.setAttribute('type', 'button');
+    popularAllButton.setAttribute('aria-pressed', 'false');
+    popularAllButton.textContent = 'Ver más';
+    popularHeader.appendChild(popularAllButton);
 
-    const recommendedChipsButton6 = document.createElement('button');
-    recommendedChipsButton6.classList.add('chip');
-    recommendedChipsButton6.setAttribute('type', 'button');
-    recommendedChipsButton6.setAttribute('data-genre', 'Animation');
-    recommendedChipsButton6.setAttribute('aria-pressed', 'false');
-    recommendedChipsButton6.textContent = 'Genero 5';
-    recommendedChips.appendChild(recommendedChipsButton6);
+    const popularMoviesList = (await getPopularMovies()).results.map((movie) => Movie.fromResponse(movie));
 
-    const recommendedChipsButton7 = document.createElement('button');
-    recommendedChipsButton7.classList.add('btn', 'btn--soft');
-    recommendedChipsButton7.setAttribute('id', 'see-all');
-    recommendedChipsButton7.setAttribute('type', 'button');
-    recommendedChipsButton7.setAttribute('aria-pressed', 'false');
-    recommendedChipsButton7.textContent = 'Ver más';
-    recommendedChips.appendChild(recommendedChipsButton7);
+    const popularMovieGrid = document.createElement('div');
+    popularMovieGrid.classList.add('movie-grid');
+    popularMovieGrid.setAttribute('id', 'movie-grid');
+    popular.appendChild(popularMovieGrid);
 
-    const recommendedMovieGrid = document.createElement('div');
-    recommendedMovieGrid.classList.add('movie-grid');
-    recommendedMovieGrid.setAttribute('id', 'movie-grid');
-    recommended.appendChild(recommendedMovieGrid);
+    popularMoviesList.forEach((movie) => {
+        const popularMovieCard = document.createElement('article');
+        popularMovieCard.classList.add('movie-card');
 
-    const recommendedEmptyState = document.createElement('p');
-    recommendedEmptyState.classList.add('empty-state');
-    recommendedEmptyState.setAttribute('id', 'empty-state');
-    recommendedEmptyState.hidden = true;    
-    recommended.appendChild(recommendedEmptyState); 
+        const popularMovieCardScrim = document.createElement('div');
+        popularMovieCardScrim.classList.add('movie-card__scrim');
+        popularMovieCard.appendChild(popularMovieCardScrim);
+
+        const popularMovieCardBookmark = document.createElement('button');
+        popularMovieCardBookmark.classList.add('movie-card__bookmark');
+        popularMovieCardBookmark.setAttribute('type', 'button');
+        popularMovieCardBookmark.setAttribute('aria-label', 'Marcar como visto');
+        popularMovieCardBookmark.addEventListener('click', () => console.log('marcar como visto'));
+        popularMovieCard.appendChild(popularMovieCardBookmark);
+
+        const popularMovieCardBookmarkIcon = icon('bookmark', 'movie-card__bookmark-icon');
+        popularMovieCardBookmark.appendChild(popularMovieCardBookmarkIcon);
+
+        const popularMovieCardContent = document.createElement('div');
+        popularMovieCardContent.classList.add('movie-card__content');
+        popularMovieCard.appendChild(popularMovieCardContent);
+
+        const popularMovieCardInfo = document.createElement('div');
+        popularMovieCardInfo.classList.add('movie-card__info');
+        popularMovieCardContent.appendChild(popularMovieCardInfo);
+
+        const genreList = movie.genres.slice(0, 2).map((genreId) => {
+            const genre = genres.find((genre) => genre.id === genreId);
+            if (!genre) return null;
+            return genre.name;
+        });
+
+        genreList.forEach((genre) => {
+            const popularMovieCardInfoChip = document.createElement('span');
+            popularMovieCardInfoChip.classList.add('tag', 'tag--small');
+            popularMovieCardInfoChip.textContent = genre;
+            popularMovieCardInfo.appendChild(popularMovieCardInfoChip);
+        });
+
+        const popularMovieCardTitle = document.createElement('h3');
+        popularMovieCardTitle.classList.add('movie-card__title');
+        popularMovieCardTitle.textContent = movie.title;
+        popularMovieCardInfo.appendChild(popularMovieCardTitle);
+
+        const popularMovieCardDesc = document.createElement('p');
+        popularMovieCardDesc.classList.add('movie-card__desc');
+        popularMovieCardDesc.textContent = movie.overview;
+        popularMovieCardInfo.appendChild(popularMovieCardDesc);
+
+        const popularMovieCardButton = document.createElement('button');
+        popularMovieCardButton.classList.add('play-button', 'play-button--glass');
+        popularMovieCardButton.setAttribute('type', 'button');
+        popularMovieCardButton.setAttribute('aria-label', 'Mas información');
+        popularMovieCardButton.addEventListener('click', () => console.log('mas información'));
+        popularMovieCardContent.appendChild(popularMovieCardButton);
+
+        const popularMovieCardButtonIcon = icon('more', 'icon--filled btn__icon');
+        popularMovieCardButton.appendChild(popularMovieCardButtonIcon);
+
+        heroCards.push({ card: popularMovieCard, movie });
+        setHeroArt(popularMovieCard, movie);
+        popularMovieGrid.appendChild(popularMovieCard);
+
+    });
+
+    const popularEmptyState = document.createElement('p');
+    popularEmptyState.classList.add('empty-state');
+    popularEmptyState.setAttribute('id', 'empty-state');
+    popularEmptyState.hidden = true;
+    popular.appendChild(popularEmptyState);
 }
 
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {

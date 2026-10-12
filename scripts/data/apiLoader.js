@@ -88,9 +88,13 @@ async function getTopRatedMovies() {
     return (await request('/movie/top_rated', { sort_by: 'vote_average.desc', 'vote_count.gte': 1000000, include_adult: true }));
 }
 
+async function getPopularMovies() {
+    return (await request('/movie/popular', { sort_by: 'popularity.desc', include_adult: true }));
+}
+
 async function getGenres() {
     const data = await request('/genre/movie/list');
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
   }
 
-export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies };
+export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies };
