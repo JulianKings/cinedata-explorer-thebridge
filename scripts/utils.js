@@ -45,4 +45,4 @@ function getHeroImageUrl(movie) {
     return imageUrl(path, pickImageSize(type));
 }
 
-export { getHeroImageUrl };
+export { getHeroImageUrl, imageUrl };

@@ -67,6 +67,7 @@ export default class Movie {
         upcomingMovieButtonsDetails.classList.add('btn', 'btn--icon');
         upcomingMovieButtonsDetails.setAttribute('type', 'button');
         upcomingMovieButtonsDetails.setAttribute('aria-label', 'Más información');
+        upcomingMovieButtonsDetails.dataset.details = this.id;
 
         const upcomingMovieButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
         upcomingMovieButtonsDetails.appendChild(upcomingMovieButtonsDetailsIcon);
@@ -132,6 +133,7 @@ export default class Movie {
         topRatedCardButtonsDetails.classList.add('btn', 'btn--icon');
         topRatedCardButtonsDetails.setAttribute('type', 'button');
         topRatedCardButtonsDetails.setAttribute('aria-label', 'Más información');
+        topRatedCardButtonsDetails.dataset.details = this.id;
         topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
 
         const topRatedCardButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
@@ -198,7 +200,7 @@ export default class Movie {
         movieCardButton.classList.add('play-button', 'play-button--glass');
         movieCardButton.setAttribute('type', 'button');
         movieCardButton.setAttribute('aria-label', 'Mas información');
-        movieCardButton.addEventListener('click', () => console.log('mas información'));
+        movieCardButton.dataset.details = this.id;
         movieCardContent.appendChild(movieCardButton);
 
         const movieCardButtonIcon = icon('more', 'icon--filled btn__icon');

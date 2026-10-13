@@ -103,6 +103,16 @@ async function searchMovies(query, page = 1) {
 async function getGenres() {
     const data = await request('/genre/movie/list');
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
-  }
+}
 
-export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre, searchMovies };
+async function getMovieDetails(id) {
+    return (await request(`/movie/${id}`, {
+        append_to_response: 'credits,videos,recommendations',
+        include_video_language: 'es,en,null', // many films only have English trailers
+    }));
+}
+
+export { 
+    clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre, searchMovies,
+    getMovieDetails
+ };

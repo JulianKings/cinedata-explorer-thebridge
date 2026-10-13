@@ -1,5 +1,8 @@
-import { getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre, searchMovies } from './data/apiLoader.js';
+import { getGenres, getPopularMovies, getPopularMoviesByGenre, searchMovies } from './data/apiLoader.js';
+import { printHome } from './pages/home.js';
 import { getHeroImageUrl } from './utils.js';
+import { h, icon, svg } from './layoutUtils.js';
+import { openMovieModal } from './components/movieModal.js';
 import Genre from './data/models/genre.js';
 import Movie from './data/models/movie.js';
 // Data
@@ -20,7 +23,7 @@ const pages = [
         icon: 'play',
     },
 ];
-const SVG_NS = 'http://www.w3.org/2000/svg';
+
 let genres = [];
 const THEME_KEY = 'cinema-theme';
 let theme = 'dark';
@@ -40,43 +43,6 @@ let themeButton = null;
 let movieGrid = null;
 
 // Utils
-function applyAttrs(node, attrs) {
-    for (const [key, value] of Object.entries(attrs)) {
-        if (value == null || value === false) continue;
-        if (key === 'text') {
-            node.textContent = value;
-        } else if (key === 'hidden') {
-            node.hidden = Boolean(value);
-        } else if (key.startsWith('on') && typeof value === 'function') {
-            node.addEventListener(key.slice(2).toLowerCase(), value);
-        } else {
-            node.setAttribute(key, value === true ? '' : value);
-        }
-    }
-}
-
-function h(tag, attrs = {}, ...children) {
-    const node = document.createElement(tag);
-    applyAttrs(node, attrs);
-    node.append(...children.flat().filter((child) => child != null && child !== false));
-    return node;
-}
-
-function svg(tag, attrs = {}, ...children) {
-    const node = document.createElementNS(SVG_NS, tag);
-    applyAttrs(node, attrs);
-    node.append(...children.flat().filter((child) => child != null && child !== false));
-    return node;
-}
-
-function icon(name, classes = '') {
-    return svg(
-        'svg',
-        { class: `icon ${classes}`.trim(), 'aria-hidden': 'true' },
-        svg('use', { href: `#icon-${name}` })
-    );
-}
-
 function setHeroArt(card, movie, preload = false) {
     const url = getHeroImageUrl(movie);
     if (!url || card.dataset.artUrl === url) return;
@@ -115,8 +81,8 @@ function applyGenreFilter(genreId) {
 }
 
 function getRandomItemsShuffle(arr, count) {
-  const shuffled = [...arr].sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
 }
 
 // DOM EVENTS
@@ -125,6 +91,17 @@ window.addEventListener('resize', () => {
     resizeTimer = setTimeout(() => {
         heroCards.forEach(({ card, movie }) => setHeroArt(card, movie, true));
     }, 200);
+});
+
+document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-details]');
+    if (!trigger) return;
+    openMovieModal(
+        Number(trigger.dataset.details),
+        genres,
+        setHeroArt,
+        trigger.closest('.feature-card, .movie-card')
+    );
 });
 
 // DOM / VIEWS
@@ -196,20 +173,6 @@ const printBasicLayout = (currentPage) => {
     main.classList.add('main');
     app.appendChild(main);
 
-    theme = loadTheme();
-}
-
-async function appendContent(contentType) {
-    switch(contentType) {
-        case 'home':
-        default:
-            await printHome();
-            break;
-    } 
-}
-
-async function printHome() {
-    genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
     const topBar = document.createElement('header');
     topBar.classList.add('topbar');
     main.appendChild(topBar);
@@ -250,6 +213,7 @@ async function printHome() {
     const lightModeButtonIcon = icon('sun', 'icon');
     lightModeButton.appendChild(lightModeButtonIcon);
 
+    theme = loadTheme();
     themeIcon = lightModeButtonIcon;
     themeButton = lightModeButton;
     renderThemeButton();
@@ -262,151 +226,17 @@ async function printHome() {
         document.documentElement.style.setProperty('--vt-y', `${event.clientY}px`);
         document.startViewTransition(() => applyTheme(next, true));
     });
+}
 
-    const heroCollapse = document.createElement('div');
-    heroCollapse.classList.add('hero-collapse');
-    main.appendChild(heroCollapse);
+async function appendContent(contentType) {
+    genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
 
-    const heroRow = document.createElement('div');
-    heroRow.classList.add('hero-row');
-    heroCollapse.appendChild(heroRow);
-
-    const upcomingMovies = (await getUpcomingMovies()).results.map((movie) => Movie.fromResponse(movie));
-
-    const upcomingMovieBox = document.createElement('section');
-    upcomingMovieBox.classList.add('feature', 'feature--primary');
-    upcomingMovieBox.setAttribute('aria-labelledby', 'new-releases-title');
-    heroRow.appendChild(upcomingMovieBox);
-
-    const upcomingMovieBoxTitle = document.createElement('h2');
-    upcomingMovieBoxTitle.classList.add('feature__title');
-    upcomingMovieBoxTitle.setAttribute('id', 'new-releases-title');
-    upcomingMovieBoxTitle.textContent = 'Estrenos más esperados';        
-    upcomingMovieBox.appendChild(upcomingMovieBoxTitle);
-
-    const upcomingSlider = document.createElement('div');
-    upcomingSlider.classList.add('feature-slider', 'feature-slider--primary');
-    upcomingSlider.setAttribute('role', 'group');
-    upcomingSlider.setAttribute('aria-roledescription', 'carrusel');
-    upcomingSlider.setAttribute('aria-label', 'Estrenos más esperados');
-    upcomingMovieBox.appendChild(upcomingSlider);
-
-    const upcomingTrack = document.createElement('div');
-    upcomingTrack.classList.add('feature-slider__track');
-    upcomingSlider.appendChild(upcomingTrack);
-
-    heroCards.length = 0;
-    const topFive = upcomingMovies.slice(0, 5);
-    topFive.forEach((movie) => {
-        movie.buildUpcomingCard(heroCards, upcomingTrack, genres, setHeroArt, icon);
-    });
-
-    const upcomingMovieButtonsCarousel = document.createElement('div');
-    upcomingMovieButtonsCarousel.classList.add('carousel-controls', 'feature-slider__controls');
-    upcomingSlider.appendChild(upcomingMovieButtonsCarousel);
-
-    const upcomingMovieButtonsCarouselPrev = document.createElement('button');
-    upcomingMovieButtonsCarouselPrev.classList.add('carousel-arrow');
-    upcomingMovieButtonsCarouselPrev.setAttribute('type', 'button');
-    upcomingMovieButtonsCarouselPrev.setAttribute('data-hero', 'prev');
-    upcomingMovieButtonsCarouselPrev.setAttribute('aria-label', 'Estreno anterior');
-    upcomingMovieButtonsCarousel.appendChild(upcomingMovieButtonsCarouselPrev);
-
-    const upcomingMovieButtonsCarouselPrevIcon = icon('arrow-left', 'carousel-arrow__icon');
-    upcomingMovieButtonsCarouselPrev.appendChild(upcomingMovieButtonsCarouselPrevIcon);
-
-    const upcomingMovieButtonsCarouselNext = document.createElement('button');
-    upcomingMovieButtonsCarouselNext.classList.add('carousel-arrow');
-    upcomingMovieButtonsCarouselNext.setAttribute('type', 'button');
-    upcomingMovieButtonsCarouselNext.setAttribute('data-hero', 'next');
-    upcomingMovieButtonsCarouselNext.setAttribute('aria-label', 'Siguiente estreno');
-    upcomingMovieButtonsCarousel.appendChild(upcomingMovieButtonsCarouselNext);
-
-    const upcomingMovieButtonsCarouselNextIcon = icon('arrow-right', 'carousel-arrow__icon');
-    upcomingMovieButtonsCarouselNext.appendChild(upcomingMovieButtonsCarouselNextIcon);
-
-    const newReleasesDots = document.createElement('div');
-    newReleasesDots.classList.add('carousel-dots');
-    newReleasesDots.setAttribute('id', 'hero-dots');
-    newReleasesDots.setAttribute('role', 'group');
-    newReleasesDots.setAttribute('aria-label', 'Secciones de nuevos estrenos');
-    upcomingMovieBox.appendChild(newReleasesDots);
-
-    setupSlider({
-        slider: upcomingSlider,
-        track: upcomingTrack,
-        controls: upcomingMovieButtonsCarousel,
-        prevButton: upcomingMovieButtonsCarouselPrev,
-        nextButton: upcomingMovieButtonsCarouselNext,
-        dotsContainer: newReleasesDots,
-        dotLabel: 'Ir al estreno',
-    });
-
-    // Top rated
-    const topRatedMovies = (await getTopRatedMovies()).results.map((movie) => Movie.fromResponse(movie));
-    const topRated = document.createElement('section');
-    topRated.classList.add('feature', 'feature--secondary');
-    topRated.setAttribute('aria-labelledby', 'top-rated-title');
-    heroRow.appendChild(topRated);
-
-    const topRatedTitle = document.createElement('h2');
-    topRatedTitle.classList.add('feature__title');
-    topRatedTitle.setAttribute('id', 'top-rated-title');
-    topRatedTitle.textContent = 'Mejor Valoradas';
-    topRated.appendChild(topRatedTitle);
-
-    const topRatedSlider = document.createElement('div');
-    topRatedSlider.classList.add('feature-slider', 'feature-slider--compact');
-    topRatedSlider.setAttribute('role', 'group');
-    topRatedSlider.setAttribute('aria-roledescription', 'carrusel');
-    topRatedSlider.setAttribute('aria-label', 'Mejor Valoradas');
-    topRated.appendChild(topRatedSlider);
-
-    const topRatedTrack = document.createElement('div');
-    topRatedTrack.classList.add('feature-slider__track');
-    topRatedSlider.appendChild(topRatedTrack);
-
-    const topFiveRated = topRatedMovies.slice(0, 5);
-    topFiveRated.forEach((movie) => {
-        movie.buildRatedCard(heroCards, topRatedTrack, genres, setHeroArt, icon);
-    });
-
-    const topRatedControls = document.createElement('div');
-    topRatedControls.classList.add('carousel-controls', 'feature-slider__controls');
-    topRatedSlider.appendChild(topRatedControls);
-
-    const topRatedPrev = document.createElement('button');
-    topRatedPrev.classList.add('carousel-arrow');
-    topRatedPrev.setAttribute('type', 'button');
-    topRatedPrev.setAttribute('aria-label', 'Película anterior');
-    topRatedControls.appendChild(topRatedPrev);
-    topRatedPrev.appendChild(icon('arrow-left', 'carousel-arrow__icon'));
-
-    const topRatedNext = document.createElement('button');
-    topRatedNext.classList.add('carousel-arrow');
-    topRatedNext.setAttribute('type', 'button');
-    topRatedNext.setAttribute('aria-label', 'Siguiente película');
-    topRatedControls.appendChild(topRatedNext);
-    topRatedNext.appendChild(icon('arrow-right', 'carousel-arrow__icon'));
-
-    const topRatedDots = document.createElement('div');
-    topRatedDots.classList.add('carousel-dots');
-    topRatedDots.setAttribute('role', 'group');
-    topRatedDots.setAttribute('aria-label', 'Secciones de mejor valoradas');
-    topRated.appendChild(topRatedDots);
-
-    setupSlider({
-        slider: topRatedSlider,
-        track: topRatedTrack,
-        controls: topRatedControls,
-        prevButton: topRatedPrev,
-        nextButton: topRatedNext,
-        dotsContainer: topRatedDots,
-        dotLabel: 'Ir a la película',
-    });
-
-    // Recommended
-    buildMoviesList(main);
+    switch(contentType) {
+        case 'home':
+        default:
+            await printHome(main, buildMoviesList, genres, heroCards, setHeroArt, setupSlider);
+            break;
+    } 
 }
 
 async function buildMoviesList(boxContainer) {
