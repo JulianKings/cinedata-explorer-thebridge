@@ -45,4 +45,15 @@ function getHeroImageUrl(movie) {
     return imageUrl(path, pickImageSize(type));
 }
 
-export { getHeroImageUrl, imageUrl };
+function createGenreTag(genre, small = false) {
+    const tag = document.createElement('button');
+    tag.classList.add('tag', 'tag--genre');
+    if (small) tag.classList.add('tag--small');
+    tag.setAttribute('type', 'button');
+    tag.setAttribute('aria-label', `Ver películas de ${genre.name}`);
+    tag.dataset.genreSearch = genre.id;
+    tag.textContent = genre.name;
+    return tag;
+}
+
+export { getHeroImageUrl, imageUrl, createGenreTag };

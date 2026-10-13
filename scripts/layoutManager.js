@@ -2,7 +2,7 @@ import { getGenres, getPopularMovies, getPopularMoviesByGenre, searchMovies } fr
 import { printHome } from './pages/home.js';
 import { getHeroImageUrl } from './utils.js';
 import { h, icon, svg } from './layoutUtils.js';
-import { openMovieModal } from './components/movieModal.js';
+import { openMovieModal, closeMovieModal } from './components/movieModal.js';
 import Genre from './data/models/genre.js';
 import Movie from './data/models/movie.js';
 // Data
@@ -32,6 +32,7 @@ let popularPage = 1;
 let popularRequestId = 0;
 let searchQuery = '';
 let searchTimer = null;
+let searchGenre = null;
 
 // DOM
 const app = document.querySelector('body');
@@ -95,13 +96,21 @@ window.addEventListener('resize', () => {
 
 document.addEventListener('click', (event) => {
     const trigger = event.target.closest('[data-details]');
-    if (!trigger) return;
-    openMovieModal(
-        Number(trigger.dataset.details),
-        genres,
-        setHeroArt,
-        trigger.closest('.feature-card, .movie-card')
-    );
+    if (trigger) {
+        openMovieModal(
+            Number(trigger.dataset.details),
+            genres,
+            setHeroArt,
+            trigger.closest('.feature-card, .movie-card')
+        );
+    }
+
+    const genreTag = event.target.closest('[data-genre-search]');
+    if (genreTag) {
+        closeMovieModal({ morphBack: false });
+        applyGenreSearch(Number(genreTag.dataset.genreSearch));
+        return;
+    }
 });
 
 // DOM / VIEWS
@@ -255,6 +264,15 @@ async function buildMoviesList(boxContainer) {
     popularTitle.textContent = 'Lo más popular';
     popularHeader.appendChild(popularTitle);
 
+    const clearSearchButton = document.createElement('button');
+    clearSearchButton.classList.add('chip', 'chip--clear');
+    clearSearchButton.setAttribute('type', 'button');
+    clearSearchButton.setAttribute('id', 'clear-search');
+    clearSearchButton.hidden = true;
+    clearSearchButton.append(icon('close', 'chip__icon'), 'Limpiar búsqueda');
+    clearSearchButton.addEventListener('click', clearSearch);
+    popularHeader.appendChild(clearSearchButton);
+
     const popularChips = document.createElement('div');
     popularChips.classList.add('chips');
     popularChips.setAttribute('id', 'genre-chips');
@@ -303,6 +321,7 @@ async function buildMoviesList(boxContainer) {
 
 function fetchCurrentMovies(page) {
     if (searchQuery) return searchMovies(searchQuery, page);
+    if (searchGenre) return getPopularMoviesByGenre(searchGenre.id, page);
     if (selectedGenre && selectedGenre !== -1) return getPopularMoviesByGenre(selectedGenre, page);
     return getPopularMovies(page);
 }
@@ -443,20 +462,49 @@ function applySearch(value) {
     if (query === searchQuery) return;
 
     searchQuery = query;
+    searchGenre = null; // typing replaces a genre search
     updateSearchView();
     loadMoviesPage(1);
 }
 
+function applyGenreSearch(genreId) {
+    const genre = genres.find((item) => item.id === genreId);
+    if (!genre) return;
+
+    clearTimeout(searchTimer); // a pending keystroke search would overwrite this
+    searchQuery = '';
+    searchGenre = genre;
+    document.querySelector('#search-input').value = '';
+
+    updateSearchView();
+    goToMoviesPage(1); // loads and scrolls to the results
+}
+
+function clearSearch() {
+    clearTimeout(searchTimer);
+    searchQuery = '';
+    searchGenre = null;
+    document.querySelector('#search-input').value = '';
+
+    updateSearchView();
+    loadMoviesPage(1);
+}
+
+function getResultsTitle() {
+    if (searchQuery) return `Resultados para "${searchQuery}"`;
+    if (searchGenre) return `Género: ${searchGenre.name}`;
+    return 'Lo más popular';
+}
+
 function updateSearchView() {
-    const isSearching = Boolean(searchQuery);
+    const isSearching = Boolean(searchQuery || searchGenre);
     main.classList.toggle('is-searching', isSearching);
     document.querySelector('.hero-row').inert = isSearching;
     document.querySelector('#genre-chips').hidden = isSearching;
-    document.querySelector('#recommended-title').textContent = isSearching
-        ? `Resultados para "${searchQuery}"`
-        : 'Lo más popular';
+    document.querySelector('#clear-search').hidden = !isSearching;
 
     const title = document.querySelector('#recommended-title');
+    title.textContent = getResultsTitle();
     title.classList.remove('is-swapping');
     void title.offsetWidth;
     title.classList.add('is-swapping');

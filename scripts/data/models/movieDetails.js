@@ -10,6 +10,7 @@ export default class MovieDetails extends Movie {
         this.cast = data.cast ?? [];
         this.trailerKey = data.trailer_key ?? null;
         this.recommendations = data.recommendations ?? [];
+        this.belongToCollection = data.belongs_to_collection ?? [];
     }
 
     get formattedRuntime() {
@@ -46,6 +47,7 @@ export default class MovieDetails extends Movie {
             })),
             trailer_key: trailer?.key ?? null,
             recommendations: (response.recommendations?.results ?? []).map((movie) => Movie.fromResponse(movie)),
+            belongs_to_collection: response.belongs_to_collection
         });
     }
 }

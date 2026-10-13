@@ -14,19 +14,18 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 // UTIL
 function canMorph(card) {
     if (!document.startViewTransition || reducedMotion.matches) return false;
-    if (!card?.isConnected || card.closest('[inert]')) return false; // gone, or a hidden carousel slide
+    if (!card?.isConnected || card.closest('[inert]')) return false;
     const rect = card.getBoundingClientRect();
     return rect.bottom > 0 && rect.top < window.innerHeight;
 }
 
-// Card <-> modal: the browser snapshots `from`, runs `update`, then animates that snapshot into `to`
 function morph(from, to, update) {
     const root = document.documentElement;
     from.style.viewTransitionName = MORPH_NAME;
     root.classList.add('is-morphing');
 
     const transition = document.startViewTransition(() => {
-        from.style.viewTransitionName = ''; // a name can only be on one element at a time
+        from.style.viewTransitionName = '';
         update();
         to.style.viewTransitionName = MORPH_NAME;
     });
@@ -39,7 +38,6 @@ function morph(from, to, update) {
 
 function buildLoading(card) {
     const loading = h('div', { class: 'movie-modal__loading', 'aria-busy': 'true', 'aria-label': 'Cargando' });
-    // reuse the card's image so the morph lands on the same picture
     const art = card?.style.getPropertyValue('--art');
     if (art) {
         loading.classList.add('movie-modal__loading--art');
@@ -175,7 +173,6 @@ function buildRecommendations(movie, genres, setHeroArt) {
 async function openMovieModal(movieId, genres, setHeroArt, sourceCard = null) {
     const modal = getDialog();
     const id = ++requestId;
-    const request = getMovieDetails(movieId);
 
     const showLoading = () => {
         modal.classList.remove('is-closing');
@@ -197,6 +194,7 @@ async function openMovieModal(movieId, genres, setHeroArt, sourceCard = null) {
     let movie;
     try {
         movie = MovieDetails.fromResponse(await getMovieDetails(movieId));
+        console.log(movie);
     } catch (error) {
         console.error(error);
         if (id !== requestId) return;

@@ -1,3 +1,5 @@
+import { createGenreTag } from "../../utils.js";
+
 export default class Movie {
     constructor({ id, title, release_date, score, overview = "", poster_path = "", backdrop_path = "", genres = [] }) {
         this.id = id;
@@ -24,12 +26,7 @@ export default class Movie {
 
         this.genres.forEach((genreId) => {
             const genre = genresList.find((genre) => genre.id === genreId);
-            if (genre) {
-                const tagItem = document.createElement('span');
-                tagItem.classList.add('tag');
-                tagItem.textContent = genre.name;
-                upcomingMovieTag.appendChild(tagItem);              
-            } 
+            if (genre) upcomingMovieTag.appendChild(createGenreTag(genre));
         });
 
         const upcomingMovieTitle = document.createElement('h3');
@@ -78,7 +75,7 @@ export default class Movie {
         upcomingTrack.appendChild(upcomingMovieCard);
     }
 
-    buildRatedCard(heroCards, topRatedTrack, genres, setHeroArt, icon) {
+    buildRatedCard(heroCards, topRatedTrack, genresList, setHeroArt, icon) {
         const topRatedCard = document.createElement('div');
         topRatedCard.classList.add('feature-card', 'feature-card--compact');
         topRatedCard.dataset.id = this.id;
@@ -92,12 +89,8 @@ export default class Movie {
         topRatedCardContent.appendChild(topRatedCardTags);
 
         for (const tag of this.genres) {
-            const genre = genres.find((genre) => genre.id === tag);
-            if (!genre) continue; 
-            const tagItem = document.createElement('span');
-            tagItem.classList.add('tag');
-            tagItem.textContent = genre.name;
-            topRatedCardTags.appendChild(tagItem);
+            const genre = genresList.find((genre) => genre.id === tag);
+            if (genre) topRatedCardTags.appendChild(createGenreTag(genre));
         }
 
         const tagScore = document.createElement('span');
@@ -173,18 +166,10 @@ export default class Movie {
         movieCardInfo.classList.add('movie-card__info');
         movieCardContent.appendChild(movieCardInfo);
 
-        const genreList = this.genres.slice(0, 2).map((genreId) => {
-            const genre = genresList.find((genre) => genre.id === genreId);
-            if (!genre) return null;
-            return genre.name;
-        });
-
-        genreList.forEach((genre) => {
-            const movieCardInfoChip = document.createElement('span');
-            movieCardInfoChip.classList.add('tag', 'tag--small');
-            movieCardInfoChip.textContent = genre;
-            movieCardInfo.appendChild(movieCardInfoChip);
-        });
+        this.genres.slice(0, 2)
+            .map((genreId) => genresList.find((genre) => genre.id === genreId))
+            .filter(Boolean)
+            .forEach((genre) => movieCardInfo.appendChild(createGenreTag(genre, true)));
 
         const movieCardTitle = document.createElement('h3');
         movieCardTitle.classList.add('movie-card__title');
