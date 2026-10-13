@@ -1,4 +1,4 @@
-import { getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre } from './data/apiLoader.js';
+import { getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre, searchMovies } from './data/apiLoader.js';
 import { getHeroImageUrl } from './utils.js';
 import Genre from './data/models/genre.js';
 import Movie from './data/models/movie.js';
@@ -27,6 +27,8 @@ let theme = 'dark';
 let selectedGenre = null;
 let popularPage = 1;
 let popularRequestId = 0;
+let searchQuery = '';
+let searchTimer = null;
 
 // DOM
 const app = document.querySelector('body');
@@ -109,12 +111,7 @@ function applyGenreFilter(genreId) {
     const recommendedChips = document.querySelector('#genre-chips');
     recommendedChips.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'));
     recommendedChips.querySelector(`button[data-genre="${genreId}"]`).classList.add('is-active');
-
-    if(selectedGenre === -1) {
-        loadPopularPage(1);
-    } else {
-        loadGenreFilteredPage(1);
-    }
+    loadMoviesPage(1);
 }
 
 function getRandomItemsShuffle(arr, count) {
@@ -232,6 +229,17 @@ async function printHome() {
     searchInput.setAttribute('autocomplete', 'off');
     search.appendChild(searchInput);
 
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => applySearch(searchInput.value), 400);
+    });
+
+    searchInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        clearTimeout(searchTimer);
+        applySearch(searchInput.value);
+    });
+
     const lightModeButton = document.createElement('button');
     lightModeButton.classList.add('icon-button');
     lightModeButton.setAttribute('type', 'button');
@@ -254,9 +262,14 @@ async function printHome() {
         document.startViewTransition(() => applyTheme(next, true));
     });
 
+    const heroCollapse = document.createElement('div');
+    heroCollapse.classList.add('hero-collapse');
+    main.appendChild(heroCollapse);
+
     const heroRow = document.createElement('div');
     heroRow.classList.add('hero-row');
-    main.appendChild(heroRow);  
+    heroCollapse.appendChild(heroRow);
+
     const upcomingMovies = (await getUpcomingMovies()).results.map((movie) => Movie.fromResponse(movie));
 
     const upcomingMovieBox = document.createElement('section');
@@ -396,7 +409,6 @@ async function printHome() {
 }
 
 async function buildMoviesList(boxContainer) {
-    const requestId = ++popularRequestId;
     const popular = document.createElement('section');
     popular.classList.add('recommended');
     popular.setAttribute('aria-labelledby', 'recommended-title');
@@ -444,35 +456,10 @@ async function buildMoviesList(boxContainer) {
         popularChips.appendChild(popularChipsButton);
     });
 
-    loadPopularPage(1, popular);
-}
-
-async function loadPopularPage(page, contentBox) {
-    const requestId = ++popularRequestId;
-    const popular = contentBox || document.querySelector('.recommended');
-
-    if (popularRequestId !== requestId) return;
-    const moviesData = await getPopularMovies(page);
-    popularPage = moviesData.page;
-    const totalPages = Math.max(moviesData.results.length, 499);
-
-    const moviesList = moviesData.results.map((movie) => Movie.fromResponse(movie));
-
-    if(!movieGrid) {
-        movieGrid = document.createElement('div');
-        movieGrid.classList.add('movie-grid');
-        movieGrid.setAttribute('id', 'movie-grid');
-        popular.appendChild(movieGrid);
-    } else {
-        for (let i = heroCards.length - 1; i >= 0; i--) {
-            if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
-        }
-        movieGrid.replaceChildren();
-    }
-
-    moviesList.forEach((movie, index) => {
-        movie.buildGeneralCard(movieGrid, index, genres, heroCards, setHeroArt, icon);
-    });
+    movieGrid = document.createElement('div');
+    movieGrid.classList.add('movie-grid');
+    movieGrid.setAttribute('id', 'movie-grid');
+    popular.appendChild(movieGrid);
 
     const popularEmptyState = document.createElement('p');
     popularEmptyState.classList.add('empty-state');
@@ -480,52 +467,60 @@ async function loadPopularPage(page, contentBox) {
     popularEmptyState.hidden = true;
     popular.appendChild(popularEmptyState);
 
-    renderPagination(popular, popularPage, totalPages, goToPopularPage);
+    loadMoviesPage(1);
 }
 
-function goToPopularPage(page) {
-    loadPopularPage(page);
-    document.querySelector('.recommended').scrollIntoView({ behavior: 'smooth', block: 'start' });
+function fetchCurrentMovies(page) {
+    if (searchQuery) return searchMovies(searchQuery, page);
+    if (selectedGenre && selectedGenre !== -1) return getPopularMoviesByGenre(selectedGenre, page);
+    return getPopularMovies(page);
 }
 
-async function loadGenreFilteredPage(page, contentBox) {
+async function loadMoviesPage(page) {
     const requestId = ++popularRequestId;
-    const popular = contentBox || document.querySelector('.recommended');
+    const popular = document.querySelector('.recommended');
+    const emptyState = document.querySelector('#empty-state');
+    movieGrid.setAttribute('aria-busy', 'true');
 
-    if (popularRequestId !== requestId) return;
-    const moviesData = await getPopularMoviesByGenre(selectedGenre, page);
+    let loadFailed = false;
+    let moviesData;
+    try {
+        moviesData = await fetchCurrentMovies(page);
+    } catch (error) {
+        if (requestId !== popularRequestId) return;
+        console.error(error);
+        loadFailed = true;
+        moviesData = { page: 1, total_pages: 0, results: [] };
+    }
+    if (requestId !== popularRequestId) return; // a newer search/page/genre already started
+
     popularPage = moviesData.page;
-    const totalPages = Math.max(moviesData.results.length, 499);
-
+    const totalPages = Math.min(moviesData.total_pages, 500);
     const moviesList = moviesData.results.map((movie) => Movie.fromResponse(movie));
 
-    if(!movieGrid) {
-        movieGrid = document.createElement('div');
-        movieGrid.classList.add('movie-grid');
-        movieGrid.setAttribute('id', 'movie-grid');
-        popular.appendChild(movieGrid);
-    } else {
-        for (let i = heroCards.length - 1; i >= 0; i--) {
-            if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
-        }
-        movieGrid.replaceChildren();
+    for (let i = heroCards.length - 1; i >= 0; i--) {
+        if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
     }
-
+    movieGrid.replaceChildren();
     moviesList.forEach((movie, index) => {
         movie.buildGeneralCard(movieGrid, index, genres, heroCards, setHeroArt, icon);
     });
+    movieGrid.removeAttribute('aria-busy');
 
-    const popularEmptyState = document.createElement('p');
-    popularEmptyState.classList.add('empty-state');
-    popularEmptyState.setAttribute('id', 'empty-state');
-    popularEmptyState.hidden = true;
-    popular.appendChild(popularEmptyState);
+     emptyState.hidden = moviesList.length > 0;
+    if (loadFailed) {
+        emptyState.textContent = 'No se pudieron cargar las películas. Inténtalo de nuevo.';
+    } else if (moviesList.length === 0) {
+        emptyState.textContent = searchQuery
+            ? `No hay resultados para "${searchQuery}".`
+            : 'No hay películas para mostrar.';
+    }
 
-    renderPagination(popular, popularPage, totalPages, goToGenreFilteredPage);
+    renderPagination(popular, popularPage, totalPages, goToMoviesPage);
 }
 
-function goToGenreFilteredPage(page) {
-    loadGenreFilteredPage(page);
+function goToMoviesPage(page) {
+    loadMoviesPage(page);
     document.querySelector('.recommended').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -609,6 +604,26 @@ function renderPagination(container, current, total, onPageChange) {
     nextButton.classList.add('pagination__arrow');
     nextButton.appendChild(icon('arrow-right', 'pagination__icon'));
     pagination.appendChild(nextButton);
+}
+
+function applySearch(value) {
+    const query = value.trim();
+    if (query.length === 1) return;     // wait for at least 2 characters
+    if (query === searchQuery) return;  // nothing changed (e.g. Enter after the debounce already ran)
+
+    searchQuery = query;
+    updateSearchView();
+    loadMoviesPage(1);
+}
+
+function updateSearchView() {
+    const isSearching = Boolean(searchQuery);
+    main.classList.toggle('is-searching', isSearching);
+    document.querySelector('.hero-row').inert = isSearching;
+    document.querySelector('#genre-chips').hidden = isSearching;
+    document.querySelector('#recommended-title').textContent = isSearching
+        ? `Resultados para "${searchQuery}"`
+        : 'Lo más popular';
 }
 
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {

@@ -96,9 +96,13 @@ async function getPopularMoviesByGenre(genreId, page = 1) {
     return (await request('/discover/movie', { "with_genres": genreId, page, sort_by: 'popularity.desc', include_adult: true }));
 }
 
+async function searchMovies(query, page = 1) {
+    return (await request('/search/movie', { query, page, include_adult: false }));
+}
+
 async function getGenres() {
     const data = await request('/genre/movie/list');
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
   }
 
-export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre };
+export { clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre, searchMovies };
