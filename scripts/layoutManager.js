@@ -93,7 +93,7 @@ function setHeroArt(card, movie, preload = false) {
     }
     const image = new Image();
     image.onload = () => {
-        if (getHeroImageUrl(movie) === url) paint(); // skip it if the window changed again meanwhile
+        if (getHeroImageUrl(movie) === url) paint();
     };
     image.src = url;
 }
@@ -172,13 +172,14 @@ const printBasicLayout = (currentPage) => {
     nav.classList.add('sidebar__nav');
     sidebar.appendChild(nav);
 
-    pages.forEach((page) => {
+    pages.forEach((page, index) => {
         const navItem = document.createElement('a');
         navItem.classList.add('nav-item');
         navItem.setAttribute('href', '#');
         if(page.pageKey === currentPage) {
             navItem.classList.add('nav-item--active');
             navItem.setAttribute('aria-current', 'page');
+            navItem.style.setProperty('--i', index + 1);
         }
         navItem.setAttribute('aria-label', page.title);
 
@@ -608,8 +609,8 @@ function renderPagination(container, current, total, onPageChange) {
 
 function applySearch(value) {
     const query = value.trim();
-    if (query.length === 1) return;     // wait for at least 2 characters
-    if (query === searchQuery) return;  // nothing changed (e.g. Enter after the debounce already ran)
+    if (query.length === 1) return;
+    if (query === searchQuery) return;
 
     searchQuery = query;
     updateSearchView();
@@ -624,6 +625,11 @@ function updateSearchView() {
     document.querySelector('#recommended-title').textContent = isSearching
         ? `Resultados para "${searchQuery}"`
         : 'Lo más popular';
+
+    const title = document.querySelector('#recommended-title');
+    title.classList.remove('is-swapping');
+    void title.offsetWidth;
+    title.classList.add('is-swapping');
 }
 
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {
