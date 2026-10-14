@@ -70,7 +70,6 @@
   --chart-5: #E87BA4;
 }
 
-
 *,
 *::before,
 *::after {
@@ -1348,6 +1347,12 @@ a:focus-visible {
   gap: 20px;
   padding: 32px;
   overflow-y: auto;
+}
+
+.stats-modal .movie-modal__close {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .stats-header__title {

@@ -14,7 +14,8 @@ let charts = [];
 function loadChartJs() {
     chartModule ??= import(CHART_URL)
         .then(({ Chart, registerables }) => {
-            Chart.register(...registerables);
+            Chart.register(...registerables);            
+            Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
             return Chart;
         })
         .catch((error) => {
@@ -220,8 +221,6 @@ function renderBarChart(Chart, { canvas, rows, horizontal }) {
     const valueAxis = horizontal ? 'x' : 'y';
     const categoryAxis = horizontal ? 'y' : 'x';
     const muted = token('--color-text-muted');
-
-    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
 
     return new Chart(canvas, {
         type: 'bar',

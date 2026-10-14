@@ -52,8 +52,8 @@ let movieGrid = null;
 // Utils
 function setHeroArt(card, movie, preload = false) {
     const url = getHeroImageUrl(movie);
-    if (!url || card.dataset.artUrl === url) return;
-    if (card.dataset.url === url) return;
+    if (!url) { card.classList.add('is-loaded'); return; }
+    if (card.dataset.artUrl === url) return;
 
     const paint = () => {
         card.dataset.artUrl = url;
