@@ -799,7 +799,7 @@ a:focus-visible {
   overflow: hidden;
   border-radius: var(--radius-card);
   transition: transform 400ms cubic-bezier(0.22, 0.8, 0.2, 1), box-shadow 400ms;
-  animation: card-in 600ms cubic-bezier(0.22, 0.8, 0.2, 1) both; 
+  animation: card-in 600ms cubic-bezier(0.22, 0.8, 0.2, 1) backwards; 
   animation-delay: calc(var(--i, 0) * 50ms); 
 }
  
@@ -808,19 +808,13 @@ a:focus-visible {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--art);
-  transition: transform 900ms cubic-bezier(0.22, 0.8, 0.2, 1);
-}
-
-.movie-card__scrim {
-  position: absolute;
-  inset: 0;
   background: linear-gradient(
     0deg,
     rgba(var(--scrim-rgb), 0.95) 0%,
     rgba(var(--scrim-rgb), 0.55) 44%,
     rgba(var(--scrim-rgb), 0) 76%
-  );
+  ), var(--art);
+  transition: transform 900ms cubic-bezier(0.22, 0.8, 0.2, 1);
 }
 
 .movie-card__bookmark {
@@ -842,10 +836,6 @@ a:focus-visible {
   width: 18px;
   height: 18px;
   stroke-width: 2;
-}
-
-.movie-card__bookmark[aria-pressed="true"] .movie-card__bookmark-icon {
-  fill: #FFFFFF;
 }
 
 .movie-card__content {
@@ -1166,6 +1156,66 @@ a:focus-visible {
   margin-top: 16px;
 }
 
+[data-details] {
+  position: relative;
+  isolation: isolate;
+  transition:
+    transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 250ms ease,
+    border-color 250ms ease;
+}
+
+[data-details]::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  padding: 2px;                  /* ring thickness */
+  border-radius: 50%;
+  background: conic-gradient(
+    from var(--ring-angle),
+    transparent 0 55%,
+    var(--color-accent) 80%,
+    #FFFFFF 92%,
+    transparent
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 300ms ease;
+  animation: ring-spin 1.4s linear infinite paused;
+}
+
+[data-details]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 50%;
+  background: var(--color-accent);
+  filter: blur(14px);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 300ms ease, transform 400ms cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+
+.details-dots circle {
+  transform-box: fill-box;       /* each dot scales around its own center */
+  transform-origin: center;
+}
+
+[data-details]:focus-visible::before {
+  opacity: 1;
+  animation-play-state: running;
+}
+
+/* springy press */
+[data-details]:active {
+  transform: scale(0.9);
+  transition-duration: 100ms;
+}
+
 .recommended__title.is-swapping { animation: title-swap 450ms cubic-bezier(0.22, 0.8, 0.2, 1) both; }
 
 .btn, .chip, .icon-button, .carousel-arrow, .play-button, .movie-card__bookmark {
@@ -1179,6 +1229,77 @@ a:focus-visible {
 
 .movie-card::before, .feature-card::before { opacity: 0; transition: opacity 600ms ease, transform 900ms cubic-bezier(0.22, 0.8, 0.2, 1); }
 .is-loaded::before { opacity: 1; }
+
+.movie-card__bookmark {
+  isolation: isolate;
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    transform 200ms ease;
+}
+
+.movie-card__bookmark[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--color-accent);
+}
+
+.bookmark-icon {
+  overflow: visible;
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bookmark-icon__fill {
+  fill: currentColor;
+  stroke: none;
+  clip-path: inset(100% 0 0 0);          /* empty: clip edge at the bottom */
+  transition: clip-path 450ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+[aria-pressed="true"] .bookmark-icon__fill {
+  clip-path: inset(0);                    /* full: clip edge rises to the top */
+  transition-delay: 120ms;                /* starts after the squash */
+}
+
+.movie-card__bookmark:active {
+  transform: scale(0.88);
+  transition-duration: 100ms;
+}
+
+.movie-card__bookmark.is-popping .bookmark-icon {
+  animation: bookmark-pop 550ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.movie-card__bookmark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.movie-card__bookmark.is-popping::before {
+  animation: bookmark-shockwave 600ms ease-out;
+}
+
+.movie-card__bookmark::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.movie-card__bookmark.is-popping::after {
+  animation: bookmark-burst 650ms cubic-bezier(0.22, 0.8, 0.2, 1) 80ms;
+}
 
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
 ::view-transition-new(root) { animation: theme-reveal 600ms ease-in-out; }
@@ -1199,6 +1320,27 @@ html.is-morphing::view-transition-new(root) { animation: fade-in 260ms ease-out;
   height: 100%;
   object-fit: cover;
   animation-duration: 320ms;
+}
+
+/* re-render after unsaving: no staggered entrance */
+.movie-grid.is-quiet .movie-card {
+  animation: none;
+}
+
+/* must beat the rule above (same specificity, comes later) */
+.movie-grid .movie-card.is-leaving {
+  pointer-events: none;
+  animation: card-out 320ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.page {
+  animation: fade-in 300ms ease-out;
+}
+
+@property --ring-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1246,6 +1388,10 @@ html.is-morphing::view-transition-new(root) { animation: fade-in 260ms ease-out;
   100% { transform: scale(1.1); }
 }
 
+@keyframes card-out {
+  to { opacity: 0; transform: scale(0.85) translateY(12px); filter: blur(6px); }
+}
+
 @keyframes modal-in  { from { opacity: 0; transform: translateY(40px) scale(0.96); } }
 @keyframes modal-out { to   { opacity: 0; transform: translateY(24px) scale(0.97); } }
 @keyframes sheet-in  { from { transform: translateY(100%); } }
@@ -1253,6 +1399,46 @@ html.is-morphing::view-transition-new(root) { animation: fade-in 260ms ease-out;
 @keyframes fade-in   { from { opacity: 0; } }
 @keyframes fade-out  { to   { opacity: 0; } }
 @keyframes shimmer   { to   { background-position: -150% 0; } }
+
+@keyframes dot-wave {
+  0%, 60%, 100% { transform: translateY(0) scale(1); }
+  30%           { transform: translateY(-4px) scale(1.25); }
+}
+
+@keyframes ring-spin {
+  to { --ring-angle: 360deg; }
+}
+
+@keyframes bookmark-pop {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(0.6); }
+  60%  { transform: scale(1.3) translateY(-2px); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bookmark-shockwave {
+  0%   { opacity: 1; transform: scale(0.8); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes bookmark-burst {
+  0% {
+    opacity: 1;
+    box-shadow:
+      0 0 var(--color-accent), 0 0 var(--color-star),
+      0 0 var(--color-accent), 0 0 var(--color-star),
+      0 0 var(--color-accent), 0 0 var(--color-star),
+      0 0 var(--color-accent), 0 0 var(--color-star);
+  }
+  100% {
+    opacity: 0;
+    box-shadow:
+      0 -26px var(--color-accent),   18px -18px var(--color-star),
+      26px 0 var(--color-accent),    18px 18px var(--color-star),
+      0 26px var(--color-accent),    -18px 18px var(--color-star),
+      -26px 0 var(--color-accent),   -18px -18px var(--color-star);
+  }
+}
 
 @container (max-width: 539px) {
   .feature-slider--primary .feature-slider__controls {
@@ -1280,6 +1466,29 @@ html.is-morphing::view-transition-new(root) { animation: fade-in 260ms ease-out;
   .nav-item:hover .nav-item__icon { animation: icon-pop 500ms ease forwards; }
 
   .sidebar__brand:hover .sidebar__logo-play { transform: translateX(1.5px) scale(1.2); }
+
+  [data-details]:hover {
+    transform: scale(1.08);
+    border-color: transparent;
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+  [data-details]:hover::before {
+    opacity: 1;
+    animation-play-state: running;
+  }
+  [data-details]:hover::after {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  [data-details]:hover .details-dots circle {
+    animation: dot-wave 900ms ease-in-out infinite;
+  }
+  [data-details]:hover .details-dots circle:nth-child(2) { animation-delay: 120ms; }
+  [data-details]:hover .details-dots circle:nth-child(3) { animation-delay: 240ms; }
+  
+  .movie-card__bookmark:hover .bookmark-icon {
+    transform: translateY(-2px) rotate(-10deg);
+  }
 }
 
 @media (max-width: 820px) {

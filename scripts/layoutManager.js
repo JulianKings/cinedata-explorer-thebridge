@@ -1,7 +1,8 @@
 import { getGenres, getPopularMovies, getPopularMoviesByGenre, searchMovies } from './data/apiLoader.js';
 import { printHome } from './pages/home.js';
 import { getHeroImageUrl } from './utils.js';
-import { h, icon, svg } from './layoutUtils.js';
+import { h, icon, svg, setBookmarkState } from './layoutUtils.js';
+import { CHANGE_EVENT, isSaved, getSavedPage, getSavedMovies } from './data/savedMovies.js';
 import { openMovieModal, closeMovieModal } from './components/movieModal.js';
 import Genre from './data/models/genre.js';
 import Movie from './data/models/movie.js';
@@ -33,6 +34,10 @@ let popularRequestId = 0;
 let searchQuery = '';
 let searchTimer = null;
 let searchGenre = null;
+const PAGE_KEYS = pages.map((page) => page.pageKey);
+let currentPage = 'home';
+let pageRoot = null;
+const pageCleanups = [];
 
 // DOM
 const app = document.querySelector('body');
@@ -107,11 +112,49 @@ document.addEventListener('click', (event) => {
 
     const genreTag = event.target.closest('[data-genre-search]');
     if (genreTag) {
+        if (document.documentElement.classList.contains('is-morphing')) return;
         closeMovieModal({ morphBack: false });
         applyGenreSearch(Number(genreTag.dataset.genreSearch));
         return;
     }
 });
+
+document.addEventListener(CHANGE_EVENT, () => {
+    document.querySelectorAll('[data-bookmark]').forEach((button) => {
+        setBookmarkState(button, isSaved(Number(button.dataset.bookmark)));
+    });
+    if (currentPage === 'saved' && movieGrid) refreshSavedPage();
+});
+
+// ROUTER
+function getRoute() {
+    const key = location.hash.slice(1);
+    return PAGE_KEYS.includes(key) ? key : 'home';
+}
+
+function startRouter() {
+    window.addEventListener('hashchange', () => appendContent(getRoute()));
+    appendContent(getRoute());
+}
+
+function resetPageState() {
+    pageCleanups.splice(0).forEach((cleanup) => cleanup());   // stop slider timers
+    pageRoot?.remove();
+
+    clearTimeout(searchTimer);
+    popularRequestId++;            // ignore responses still arriving for the old page
+    searchQuery = '';
+    searchGenre = null;
+    selectedGenre = null;
+    movieGrid = null;
+    heroCards.length = 0;
+    document.querySelector('#search-input').value = '';
+    main.classList.remove('is-searching');
+
+    pageRoot = h('div', { class: 'page' });
+    main.appendChild(pageRoot);
+    window.scrollTo({ top: 0 });
+}
 
 // DOM / VIEWS
 function renderThemeButton() {
@@ -134,7 +177,16 @@ function applyTheme(newTheme, remember = false) {
     }
 }
 
-const printBasicLayout = (currentPage) => {
+function setActiveNav(pageKey) {
+    document.querySelectorAll('.nav-item').forEach((item) => {
+        const active = item.dataset.navKey === pageKey;
+        item.classList.toggle('nav-item--active', active);
+        if (active) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+    });
+}
+
+const printBasicLayout = () => {
     app.classList.add('app');
 
     // Sidebar
@@ -149,7 +201,7 @@ const printBasicLayout = (currentPage) => {
     );
     sidebar.appendChild(logo);    
 
-    const brand = h('a', { class: 'sidebar__brand', href: '#' },
+    const brand = h('a', { class: 'sidebar__brand', href: '#home' },
         logo, h('span', { class: 'sidebar__brand-name', text: 'Cinema Explorer' })
     );
     sidebar.appendChild(brand);
@@ -161,12 +213,9 @@ const printBasicLayout = (currentPage) => {
     pages.forEach((page, index) => {
         const navItem = document.createElement('a');
         navItem.classList.add('nav-item');
-        navItem.setAttribute('href', '#');
-        if(page.pageKey === currentPage) {
-            navItem.classList.add('nav-item--active');
-            navItem.setAttribute('aria-current', 'page');
-            navItem.style.setProperty('--i', index + 1);
-        }
+        navItem.setAttribute('href', `#${page.pageKey}`);
+        navItem.dataset.navKey = page.pageKey;
+        navItem.style.setProperty('--i', index + 1);
         navItem.setAttribute('aria-label', page.title);
 
         const navItemIcon = icon(page.icon, 'nav-item__icon');
@@ -237,18 +286,27 @@ const printBasicLayout = (currentPage) => {
     });
 }
 
-async function appendContent(contentType) {
-    genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
+async function appendContent(pageKey) {
+    currentPage = pageKey;
+    setActiveNav(pageKey);
+    resetPageState();
 
-    switch(contentType) {
+    if (!genres.length) genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
+
+    switch (pageKey) {
+        case 'saved':
+            buildMoviesList(pageRoot);
+            break;
         case 'home':
         default:
-            await printHome(main, buildMoviesList, genres, heroCards, setHeroArt, setupSlider);
+            await printHome(pageRoot, buildMoviesList, genres, heroCards, setHeroArt, setupSlider);
             break;
-    } 
+    }
 }
 
 async function buildMoviesList(boxContainer) {
+    if (!boxContainer.isConnected) return; // page was reset
+
     const popular = document.createElement('section');
     popular.classList.add('recommended');
     popular.setAttribute('aria-labelledby', 'recommended-title');
@@ -290,7 +348,10 @@ async function buildMoviesList(boxContainer) {
     popularChipsButtonAll.addEventListener('click', () => applyGenreFilter(-1));
     popularChips.appendChild(popularChipsButtonAll);
 
-    const genreList = getRandomItemsShuffle(genres, 6);
+    const chipPool = currentPage === 'saved'
+        ? genres.filter((genre) => getSavedMovies().some((movie) => movie.genre_ids?.includes(genre.id)))
+        : genres;
+    const genreList = getRandomItemsShuffle(chipPool, 6);
 
     genreList.forEach((genre) => {
         const popularChipsButton = document.createElement('button');
@@ -320,13 +381,32 @@ async function buildMoviesList(boxContainer) {
 }
 
 function fetchCurrentMovies(page) {
-    if (searchQuery) return searchMovies(searchQuery, page);
-    if (searchGenre) return getPopularMoviesByGenre(searchGenre.id, page);
-    if (selectedGenre && selectedGenre !== -1) return getPopularMoviesByGenre(selectedGenre, page);
-    return getPopularMovies(page);
+    if (currentPage === 'saved') {
+        const genreId = searchGenre?.id ?? (selectedGenre > 0 ? selectedGenre : null);
+        return getSavedPage(page, { query: searchQuery, genreId });
+    } else {
+        if (searchQuery) return searchMovies(searchQuery, page);
+        if (searchGenre) return getPopularMoviesByGenre(searchGenre.id, page);
+        if (selectedGenre && selectedGenre !== -1) return getPopularMoviesByGenre(selectedGenre, page);
+        return getPopularMovies(page);
+    }
 }
 
-async function loadMoviesPage(page) {
+function getResultsTitle() {
+    const prefix = currentPage === 'saved' ? 'Guardadas · ' : '';
+    if (searchQuery) return `${prefix}Resultados para "${searchQuery}"`;
+    if (searchGenre) return `${prefix}Género: ${searchGenre.name}`;
+    return currentPage === 'saved' ? 'Guardadas' : 'Lo más popular';
+}
+
+function getEmptyMessage() {
+    if (searchQuery) return `No hay resultados para "${searchQuery}".`;
+    if (currentPage !== 'saved') return 'No hay películas para mostrar.';
+    if (searchGenre || selectedGenre > 0) return 'No tienes películas guardadas de este género.';
+    return 'Aún no has guardado ninguna película. Pulsa el marcador de cualquier película para tenerla aquí.';
+}
+
+async function loadMoviesPage(page, { quiet = false } = {}) {
     const requestId = ++popularRequestId;
     const popular = document.querySelector('.recommended');
     const emptyState = document.querySelector('#empty-state');
@@ -351,7 +431,9 @@ async function loadMoviesPage(page) {
     for (let i = heroCards.length - 1; i >= 0; i--) {
         if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
     }
+
     movieGrid.replaceChildren();
+    movieGrid.classList.toggle('is-quiet', quiet);
     moviesList.forEach((movie, index) => {
         movie.buildGeneralCard(movieGrid, index, genres, heroCards, setHeroArt, icon);
     });
@@ -361,9 +443,7 @@ async function loadMoviesPage(page) {
     if (loadFailed) {
         emptyState.textContent = 'No se pudieron cargar las películas. Inténtalo de nuevo.';
     } else if (moviesList.length === 0) {
-        emptyState.textContent = searchQuery
-            ? `No hay resultados para "${searchQuery}".`
-            : 'No hay películas para mostrar.';
+        emptyState.textContent = getEmptyMessage();
     }
 
     renderPagination(popular, popularPage, totalPages, goToMoviesPage);
@@ -490,16 +570,10 @@ function clearSearch() {
     loadMoviesPage(1);
 }
 
-function getResultsTitle() {
-    if (searchQuery) return `Resultados para "${searchQuery}"`;
-    if (searchGenre) return `Género: ${searchGenre.name}`;
-    return 'Lo más popular';
-}
-
 function updateSearchView() {
     const isSearching = Boolean(searchQuery || searchGenre);
     main.classList.toggle('is-searching', isSearching);
-    document.querySelector('.hero-row').inert = isSearching;
+    if (heroRow) heroRow.inert = isSearching;
     document.querySelector('#genre-chips').hidden = isSearching;
     document.querySelector('#clear-search').hidden = !isSearching;
 
@@ -510,6 +584,18 @@ function updateSearchView() {
     title.classList.add('is-swapping');
 }
 
+async function refreshSavedPage() {
+    const leaving = [...movieGrid.querySelectorAll('.movie-card')]
+        .filter((card) => !isSaved(Number(card.dataset.id)));
+
+    leaving.forEach((card) => card.classList.add('is-leaving'));
+    await Promise.all(leaving.flatMap((card) =>
+        card.getAnimations().map((animation) => animation.finished.catch(() => {}))
+    ));
+
+    loadMoviesPage(popularPage, { quiet: true });
+}
+
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {
     const slides = [...track.children];
     let current = 0;
@@ -517,6 +603,7 @@ function setupSlider({ slider, track, controls, prevButton, nextButton, dotsCont
     let timer = null;
     const start = () => { clearInterval(timer); timer = setInterval(() => goTo(current + 1), 6000); };
     const stop = () => clearInterval(timer);
+    pageCleanups.push(stop);
     slider.addEventListener('mouseenter', stop);
     slider.addEventListener('mouseleave', start);
     slider.addEventListener('focusin', stop);
@@ -570,4 +657,4 @@ function setupSlider({ slider, track, controls, prevButton, nextButton, dotsCont
     return { goTo };
 }
 
-export { printBasicLayout, appendContent };
+export { printBasicLayout, startRouter };

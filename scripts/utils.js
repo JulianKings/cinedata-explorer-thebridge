@@ -56,4 +56,6 @@ function createGenreTag(genre, small = false) {
     return tag;
 }
 
-export { getHeroImageUrl, imageUrl, createGenreTag };
+const normalize = (text = '') => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+export { getHeroImageUrl, imageUrl, createGenreTag, normalize };

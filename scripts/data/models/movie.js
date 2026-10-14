@@ -1,4 +1,6 @@
 import { createGenreTag } from "../../utils.js";
+import { dotsIcon, bookmarkIcon, setBookmarkState } from "../../layoutUtils.js";
+import { isSaved, toggleSaved } from "../savedMovies.js";
 
 export default class Movie {
     constructor({ id, title, release_date, score, overview = "", poster_path = "", backdrop_path = "", genres = [] }) {
@@ -66,7 +68,7 @@ export default class Movie {
         upcomingMovieButtonsDetails.setAttribute('aria-label', 'Más información');
         upcomingMovieButtonsDetails.dataset.details = this.id;
 
-        const upcomingMovieButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
+        const upcomingMovieButtonsDetailsIcon = dotsIcon('btn__icon');
         upcomingMovieButtonsDetails.appendChild(upcomingMovieButtonsDetailsIcon);
         upcomingMovieButtons.appendChild(upcomingMovieButtonsDetails);
 
@@ -129,7 +131,7 @@ export default class Movie {
         topRatedCardButtonsDetails.dataset.details = this.id;
         topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
 
-        const topRatedCardButtonsDetailsIcon = icon('more', 'icon--filled btn__icon');
+        const topRatedCardButtonsDetailsIcon = dotsIcon('btn__icon');
         topRatedCardButtonsDetails.appendChild(topRatedCardButtonsDetailsIcon);
         topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
 
@@ -144,19 +146,23 @@ export default class Movie {
         movieCard.style.setProperty('--i', index);
         movieCard.dataset.id = this.id;
 
-        const movieCardScrim = document.createElement('div');
-        movieCardScrim.classList.add('movie-card__scrim');
-        movieCard.appendChild(movieCardScrim);
-
         const movieCardBookmark = document.createElement('button');
         movieCardBookmark.classList.add('movie-card__bookmark');
         movieCardBookmark.setAttribute('type', 'button');
-        movieCardBookmark.setAttribute('aria-label', 'Marcar como visto');
-        movieCardBookmark.addEventListener('click', () => console.log('marcar como visto'));
+        movieCardBookmark.dataset.bookmark = this.id;
+        setBookmarkState(movieCardBookmark, isSaved(this.id));   // restored state, no burst
+        movieCardBookmark.addEventListener('click', () => {
+            const saved = toggleSaved(this);
+
+            movieCardBookmark.classList.remove('is-popping');
+            if (saved) {
+                void movieCardBookmark.offsetWidth;
+                movieCardBookmark.classList.add('is-popping');
+            }
+        });
         movieCard.appendChild(movieCardBookmark);
 
-        const movieCardBookmarkIcon = icon('bookmark', 'movie-card__bookmark-icon');
-        movieCardBookmark.appendChild(movieCardBookmarkIcon);
+        movieCardBookmark.appendChild(bookmarkIcon('movie-card__bookmark-icon'));
 
         const movieCardContent = document.createElement('div');
         movieCardContent.classList.add('movie-card__content');
@@ -188,12 +194,25 @@ export default class Movie {
         movieCardButton.dataset.details = this.id;
         movieCardContent.appendChild(movieCardButton);
 
-        const movieCardButtonIcon = icon('more', 'icon--filled btn__icon');
+        const movieCardButtonIcon = dotsIcon('btn__icon');
         movieCardButton.appendChild(movieCardButtonIcon);
 
         heroCards.push({ card: movieCard, movie: this });
         setHeroArt(movieCard, this);
         movieGrid.appendChild(movieCard);
+    }
+
+    toResponse() {
+        return {
+            id: this.id,
+            title: this.title,
+            release_date: this.releaseDate,
+            vote_average: this.score,
+            overview: this.overview,
+            poster_path: this.posterPath,
+            backdrop_path: this.backdropPath,
+            genre_ids: this.genres,
+        };
     }
 
     static fromResponse(response) {

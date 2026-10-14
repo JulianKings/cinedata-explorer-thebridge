@@ -5,7 +5,7 @@ export default class MovieDetails extends Movie {
         super(data);
         this.tagline = data.tagline ?? '';
         this.runtime = data.runtime ?? null;
-        this.genreNames = data.genre_names ?? [];
+        this.genreList = data.genre_list ?? [];
         this.directors = data.directors ?? [];
         this.cast = data.cast ?? [];
         this.trailerKey = data.trailer_key ?? null;
@@ -36,7 +36,7 @@ export default class MovieDetails extends Movie {
             poster_path: response.poster_path,
             backdrop_path: response.backdrop_path,
             genres: genres.map((genre) => genre.id),
-            genre_names: genres.map((genre) => genre.name),
+            genre_list: genres.map((genre) => ({ id: genre.id, name: genre.name })),
             tagline: response.tagline,
             runtime: response.runtime,
             directors: crew.filter((person) => person.job === 'Director').map((person) => person.name),

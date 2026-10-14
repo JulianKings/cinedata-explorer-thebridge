@@ -1,6 +1,6 @@
 import { getMovieDetails } from '../data/apiLoader.js';
 import MovieDetails from '../data/models/movieDetails.js';
-import { imageUrl } from '../utils.js';
+import { imageUrl, createGenreTag } from '../utils.js';
 import { h, icon } from '../layoutUtils.js';
 
 let dialog = null;
@@ -74,9 +74,10 @@ function getDialog() {
     return dialog;
 }
 
-function closeMovieModal() {
+function closeMovieModal({ morphBack: morphBack = true } = {}) {
     if (!dialog?.open || dialog.classList.contains('is-closing')) return;
     if (document.documentElement.classList.contains('is-morphing')) return;
+
     requestId++;
 
     const finish = () => {
@@ -85,7 +86,7 @@ function closeMovieModal() {
         body.replaceChildren();
     };
 
-    if (canMorph(originCard)) {
+    if (morphBack && canMorph(originCard)) {
         morph(dialog, originCard, finish);
         return;
     }
@@ -113,7 +114,7 @@ function buildHero(movie) {
             poster && h('img', { class: 'details-hero__poster', src: poster, alt: `Póster de ${movie.title}`, width: 500, height: 750 }),
             h('div', { class: 'details-hero__info' },
                 h('div', { class: 'tag-list' },
-                    movie.genreNames.map((name) => h('span', { class: 'tag', text: name })),
+                    movie.genreList.map((genre) => createGenreTag(genre)),
                     h('span', { class: 'tag tag--rating' },
                         icon('star', 'tag__star'),
                         h('span', { text: movie.score.toFixed(1) })

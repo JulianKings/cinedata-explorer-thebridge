@@ -1,4 +1,4 @@
-import { printBasicLayout, appendContent } from './layoutManager.js';
+import { printBasicLayout, startRouter } from './layoutManager.js';
 
-printBasicLayout("home");
-appendContent("home");
+printBasicLayout();
+startRouter();

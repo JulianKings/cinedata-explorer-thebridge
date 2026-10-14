@@ -37,4 +37,24 @@ function icon(name, classes = '') {
     );
 }
 
-export { h, svg, icon }
+function dotsIcon(classes = '') {
+    return svg('svg', { class: `icon icon--filled details-dots ${classes}`.trim(), viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+        [5, 12, 19].map((cx) => svg('circle', { cx, cy: 12, r: 1.8 }))
+    );
+}
+
+const BOOKMARK_PATH = 'M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1z';
+
+function bookmarkIcon(classes = '') {
+    return svg('svg', { class: `icon bookmark-icon ${classes}`.trim(), viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+        svg('path', { class: 'bookmark-icon__fill', d: BOOKMARK_PATH }),
+        svg('path', { class: 'bookmark-icon__outline', d: BOOKMARK_PATH })
+    );
+}
+
+function setBookmarkState(button, saved) {
+    button.setAttribute('aria-pressed', String(saved));
+    button.setAttribute('aria-label', saved ? 'Quitar de guardadas' : 'Guardar película');
+}
+
+export { h, svg, icon, dotsIcon, bookmarkIcon, setBookmarkState };
