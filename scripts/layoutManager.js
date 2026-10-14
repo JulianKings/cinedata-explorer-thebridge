@@ -52,6 +52,7 @@ let movieGrid = null;
 function setHeroArt(card, movie, preload = false) {
     const url = getHeroImageUrl(movie);
     if (!url || card.dataset.artUrl === url) return;
+    if (card.dataset.url === url) return;
 
     const paint = () => {
         card.dataset.artUrl = url;
@@ -80,9 +81,11 @@ function loadTheme() {
 
 function applyGenreFilter(genreId) {
     selectedGenre = genreId;
-    const recommendedChips = document.querySelector('#genre-chips');
-    recommendedChips.querySelectorAll('button').forEach((button) => button.classList.remove('is-active'));
-    recommendedChips.querySelector(`button[data-genre="${genreId}"]`).classList.add('is-active');
+    document.querySelectorAll('#genre-chips .chip').forEach((chip) => {
+        const active = Number(chip.dataset.genre) === genreId;
+        chip.classList.toggle('is-active', active);
+        chip.setAttribute('aria-pressed', String(active));
+    });
     loadMoviesPage(1);
 }
 
@@ -140,6 +143,7 @@ function startRouter() {
 function resetPageState() {
     pageCleanups.splice(0).forEach((cleanup) => cleanup());   // stop slider timers
     pageRoot?.remove();
+    closeMovieModal({ morphBack: false });
 
     clearTimeout(searchTimer);
     popularRequestId++;            // ignore responses still arriving for the old page
@@ -184,6 +188,11 @@ function setActiveNav(pageKey) {
         if (active) item.setAttribute('aria-current', 'page');
         else item.removeAttribute('aria-current');
     });
+
+    const page = pages.find((item) => item.pageKey === pageKey);
+    document.title = page && pageKey !== 'home'
+        ? `${page.title} · Cinema Explorer`
+        : 'Cinema Explorer';
 }
 
 const printBasicLayout = () => {
@@ -290,8 +299,10 @@ async function appendContent(pageKey) {
     currentPage = pageKey;
     setActiveNav(pageKey);
     resetPageState();
+    const root = pageRoot;
 
     if (!genres.length) genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
+    if (root !== pageRoot) return; // navigated again while loading
 
     switch (pageKey) {
         case 'saved':
@@ -319,7 +330,7 @@ async function buildMoviesList(boxContainer) {
     const popularTitle = document.createElement('h2');
     popularTitle.classList.add('recommended__title');
     popularTitle.setAttribute('id', 'recommended-title');
-    popularTitle.textContent = 'Lo más popular';
+    popularTitle.textContent = getResultsTitle();
     popularHeader.appendChild(popularTitle);
 
     const clearSearchButton = document.createElement('button');
@@ -348,23 +359,7 @@ async function buildMoviesList(boxContainer) {
     popularChipsButtonAll.addEventListener('click', () => applyGenreFilter(-1));
     popularChips.appendChild(popularChipsButtonAll);
 
-    const chipPool = currentPage === 'saved'
-        ? genres.filter((genre) => getSavedMovies().some((movie) => movie.genre_ids?.includes(genre.id)))
-        : genres;
-    const genreList = getRandomItemsShuffle(chipPool, 6);
-
-    genreList.forEach((genre) => {
-        const popularChipsButton = document.createElement('button');
-        popularChipsButton.classList.add('chip');
-        if(selectedGenre === genre.id) popularChipsButton.classList.add('is-active');
-        popularChipsButton.setAttribute('type', 'button');
-        popularChipsButton.setAttribute('data-genre', genre.id);
-        popularChipsButton.setAttribute('aria-pressed', 'false');
-        popularChipsButton.textContent = genre.name;
-
-        popularChipsButton.addEventListener('click', () => applyGenreFilter(genre.id));
-        popularChips.appendChild(popularChipsButton);
-    });
+    renderGenreChips(popularChips);
 
     movieGrid = document.createElement('div');
     movieGrid.classList.add('movie-grid');
@@ -404,6 +399,50 @@ function getEmptyMessage() {
     if (currentPage !== 'saved') return 'No hay películas para mostrar.';
     if (searchGenre || selectedGenre > 0) return 'No tienes películas guardadas de este género.';
     return 'Aún no has guardado ninguna película. Pulsa el marcador de cualquier película para tenerla aquí.';
+}
+
+function getChipGenres() {
+    if (currentPage !== 'saved') return getRandomItemsShuffle(genres, 6);
+
+    const counts = new Map();
+    getSavedMovies().forEach((movie) => {
+        (movie.genre_ids ?? []).forEach((id) => counts.set(id, (counts.get(id) ?? 0) + 1));
+    });
+
+    const sorted = genres
+        .filter((genre) => counts.has(genre.id))
+        .sort((a, b) => counts.get(b.id) - counts.get(a.id) || a.name.localeCompare(b.name));
+
+    const list = sorted.slice(0, 6);
+    const active = sorted.find((genre) => genre.id === selectedGenre);
+    if (active && !list.includes(active)) list[list.length - 1] = active;
+    return list;
+}
+
+function createChip(genreId, label) {
+    const active = genreId === -1 ? !(selectedGenre > 0) : selectedGenre === genreId;
+    const chip = document.createElement('button');
+    chip.classList.add('chip');
+    chip.classList.toggle('is-active', active);
+    chip.setAttribute('type', 'button');
+    chip.setAttribute('aria-pressed', String(active));
+    chip.dataset.genre = genreId;
+    chip.textContent = label;
+    chip.addEventListener('click', () => applyGenreFilter(genreId));
+    return chip;
+}
+
+function renderGenreChips(container = document.querySelector('#genre-chips')) {
+    const chipGenres = getChipGenres();
+
+    if (selectedGenre > 0 && !chipGenres.some((genre) => genre.id === selectedGenre)) {
+        selectedGenre = -1;
+    }
+
+    container.replaceChildren(
+        createChip(-1, 'Ver Todo'),
+        ...chipGenres.map((genre) => createChip(genre.id, genre.name))
+    );
 }
 
 async function loadMoviesPage(page, { quiet = false } = {}) {
@@ -573,6 +612,7 @@ function clearSearch() {
 function updateSearchView() {
     const isSearching = Boolean(searchQuery || searchGenre);
     main.classList.toggle('is-searching', isSearching);
+    const heroRow = document.querySelector('.hero-row');
     if (heroRow) heroRow.inert = isSearching;
     document.querySelector('#genre-chips').hidden = isSearching;
     document.querySelector('#clear-search').hidden = !isSearching;
@@ -593,7 +633,11 @@ async function refreshSavedPage() {
         card.getAnimations().map((animation) => animation.finished.catch(() => {}))
     ));
 
-    loadMoviesPage(popularPage, { quiet: true });
+    const genreBefore = selectedGenre;
+    renderGenreChips();
+    const sameFilter = selectedGenre === genreBefore;
+
+    loadMoviesPage(sameFilter ? popularPage : 1, { quiet: sameFilter });
 }
 
 function setupSlider({ slider, track, controls, prevButton, nextButton, dotsContainer, dotLabel }) {

@@ -133,6 +133,8 @@ a:focus-visible {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body);
@@ -1495,6 +1497,18 @@ html.is-morphing::view-transition-new(root) { animation: fade-in 260ms ease-out;
   .sidebar__nav {
     flex-direction: row;
     overflow-x: auto;
+  }
+
+   .app {
+    align-content: flex-start; 
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    overflow-y: auto;
+    z-index: 1;
   }
 
   .nav-item::after {
