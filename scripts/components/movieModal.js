@@ -2,6 +2,7 @@ import { getMovieDetails } from '../data/apiLoader.js';
 import MovieDetails from '../data/models/movieDetails.js';
 import { imageUrl, createGenreTag } from '../utils.js';
 import { h, icon } from '../layoutUtils.js';
+import { buildProductionSection, destroyProductionMap } from './productionMap.js';
 
 let dialog = null;
 let body = null;
@@ -81,6 +82,7 @@ function closeMovieModal({ morphBack: morphBack = true } = {}) {
     requestId++;
 
     const finish = () => {
+        destroyProductionMap();
         dialog.classList.remove('is-closing', 'is-morphed');
         dialog.close();
         body.replaceChildren();
@@ -176,6 +178,7 @@ async function openMovieModal(movieId, genres, setHeroArt, sourceCard = null) {
     const id = ++requestId;
 
     const showLoading = () => {
+        destroyProductionMap();
         modal.classList.remove('is-closing');
         body.replaceChildren(buildLoading(sourceCard));
         body.scrollTop = 0;
@@ -207,6 +210,7 @@ async function openMovieModal(movieId, genres, setHeroArt, sourceCard = null) {
     body.replaceChildren(...[
         buildHero(movie),
         buildCast(movie),
+        buildProductionSection(movie.productionCountries),
         buildRecommendations(movie, genres, setHeroArt),
     ].filter(Boolean));
 }

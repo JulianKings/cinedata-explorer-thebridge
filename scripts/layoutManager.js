@@ -668,7 +668,7 @@ function setupSlider({ slider, track, controls, prevButton, nextButton, dotsCont
         slide.setAttribute('aria-label', `${index + 1} de ${slides.length}`);
     });
 
-    const dots = slides.map((slide, index) => {
+    const dots = slides.map((_slide, index) => {
         const dot = document.createElement('button');
         dot.classList.add('carousel-dot');
         dot.setAttribute('type', 'button');

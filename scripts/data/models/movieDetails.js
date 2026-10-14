@@ -11,6 +11,7 @@ export default class MovieDetails extends Movie {
         this.trailerKey = data.trailer_key ?? null;
         this.recommendations = data.recommendations ?? [];
         this.belongToCollection = data.belongs_to_collection ?? [];
+        this.productionCountries = data.production_countries ?? [];
     }
 
     get formattedRuntime() {
@@ -47,7 +48,9 @@ export default class MovieDetails extends Movie {
             })),
             trailer_key: trailer?.key ?? null,
             recommendations: (response.recommendations?.results ?? []).map((movie) => Movie.fromResponse(movie)),
-            belongs_to_collection: response.belongs_to_collection
+            belongs_to_collection: response.belongs_to_collection,
+            production_countries: (response.production_countries ?? [])
+                .map(({ iso_3166_1, name }) => ({ code: iso_3166_1, name }))
         });
     }
 }
