@@ -1,4 +1,4 @@
-import { getSavedMovies } from './savedMovies.js';
+import { getSavedMovies } from './savedMedia.js';
 
 const MAX_GENRE_SLICES = 5;
 const SCORE_BUCKETS = [

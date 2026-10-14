@@ -63,7 +63,7 @@ async function renderMap(container, countries) {
         container.remove(); // the country tags above still say where
         return;
     }
-    if (!container.isConnected) return; // another movie was opened meanwhile
+    if (!container.isConnected) return; // another title was opened meanwhile
 
     container.classList.remove('is-loading');
 

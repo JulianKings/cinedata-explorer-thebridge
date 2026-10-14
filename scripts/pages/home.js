@@ -1,8 +1,15 @@
-import { getUpcomingMovies, getTopRatedMovies } from "../data/apiLoader.js";
-import Movie from "../data/models/movie.js";
+import { getUpcoming, getTopRated } from "../data/apiLoader.js";
+import Media from "../data/models/media.js";
 import { h, icon, svg } from '../layoutUtils.js';
 
-async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, setupSlider) {
+const COPY = {
+    movie: { upcoming: 'Estrenos más esperados', topRated: 'Mejor valoradas', item: 'película' },
+    tv:    { upcoming: 'Próximos estrenos',      topRated: 'Series mejor valoradas', item: 'serie' },
+};
+
+async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, setupSlider, mediaType = 'movie') {
+    const copy = COPY[mediaType];
+
     const heroCollapse = document.createElement('div');
     heroCollapse.classList.add('hero-collapse');
     main.appendChild(heroCollapse);
@@ -11,7 +18,9 @@ async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, s
     heroRow.classList.add('hero-row');
     heroCollapse.appendChild(heroRow);
 
-    const upcomingMovies = (await getUpcomingMovies()).results.map((movie) => Movie.fromResponse(movie));
+    const upcomingMovies = (await getUpcoming(mediaType)).results
+        .filter((item) => item.backdrop_path || item.poster_path) // brand-new shows often have no art yet
+        .map((item) => Media.fromResponse(item, mediaType));
 
     const upcomingMovieBox = document.createElement('section');
     upcomingMovieBox.classList.add('feature', 'feature--primary');
@@ -21,14 +30,14 @@ async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, s
     const upcomingMovieBoxTitle = document.createElement('h2');
     upcomingMovieBoxTitle.classList.add('feature__title');
     upcomingMovieBoxTitle.setAttribute('id', 'new-releases-title');
-    upcomingMovieBoxTitle.textContent = 'Estrenos más esperados';        
+    upcomingMovieBoxTitle.textContent = copy.upcoming;
     upcomingMovieBox.appendChild(upcomingMovieBoxTitle);
 
     const upcomingSlider = document.createElement('div');
     upcomingSlider.classList.add('feature-slider', 'feature-slider--primary');
     upcomingSlider.setAttribute('role', 'group');
     upcomingSlider.setAttribute('aria-roledescription', 'carrusel');
-    upcomingSlider.setAttribute('aria-label', 'Estrenos más esperados');
+    upcomingSlider.setAttribute('aria-label', copy.upcoming);
     upcomingMovieBox.appendChild(upcomingSlider);
 
     const upcomingTrack = document.createElement('div');
@@ -83,7 +92,7 @@ async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, s
     });
 
     // Top rated
-    const topRatedMovies = (await getTopRatedMovies()).results.map((movie) => Movie.fromResponse(movie));
+    const topRatedMovies = (await getTopRated(mediaType)).results.map((movie) => Media.fromResponse(movie, mediaType));
     const topRated = document.createElement('section');
     topRated.classList.add('feature', 'feature--secondary');
     topRated.setAttribute('aria-labelledby', 'top-rated-title');
@@ -92,14 +101,14 @@ async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, s
     const topRatedTitle = document.createElement('h2');
     topRatedTitle.classList.add('feature__title');
     topRatedTitle.setAttribute('id', 'top-rated-title');
-    topRatedTitle.textContent = 'Mejor Valoradas';
+    topRatedTitle.textContent = copy.topRated;
     topRated.appendChild(topRatedTitle);
 
     const topRatedSlider = document.createElement('div');
     topRatedSlider.classList.add('feature-slider', 'feature-slider--compact');
     topRatedSlider.setAttribute('role', 'group');
     topRatedSlider.setAttribute('aria-roledescription', 'carrusel');
-    topRatedSlider.setAttribute('aria-label', 'Mejor Valoradas');
+    topRatedSlider.setAttribute('aria-label', copy.topRated);
     topRated.appendChild(topRatedSlider);
 
     const topRatedTrack = document.createElement('div');
@@ -118,14 +127,14 @@ async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, s
     const topRatedPrev = document.createElement('button');
     topRatedPrev.classList.add('carousel-arrow');
     topRatedPrev.setAttribute('type', 'button');
-    topRatedPrev.setAttribute('aria-label', 'Película anterior');
+    topRatedPrev.setAttribute('aria-label', `${copy.item[0].toUpperCase()}${copy.item.slice(1)} anterior`);
     topRatedControls.appendChild(topRatedPrev);
     topRatedPrev.appendChild(icon('arrow-left', 'carousel-arrow__icon'));
 
     const topRatedNext = document.createElement('button');
     topRatedNext.classList.add('carousel-arrow');
     topRatedNext.setAttribute('type', 'button');
-    topRatedNext.setAttribute('aria-label', 'Siguiente película');
+    topRatedNext.setAttribute('aria-label', `Siguiente ${copy.item}`);
     topRatedControls.appendChild(topRatedNext);
     topRatedNext.appendChild(icon('arrow-right', 'carousel-arrow__icon'));
 
@@ -142,7 +151,7 @@ async function printHome(main, buildMoviesList, genres, heroCards, setHeroArt, s
         prevButton: topRatedPrev,
         nextButton: topRatedNext,
         dotsContainer: topRatedDots,
-        dotLabel: 'Ir a la película',
+        dotLabel: `Ir a la ${copy.item}`,
     });
 
     // Recommended

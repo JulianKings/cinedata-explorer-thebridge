@@ -1,7 +1,11 @@
+import { normalize } from '../utils.js';
+
 const SAVED_KEY = 'cinema-saved';
 const CHANGE_EVENT = 'saved-change';
 const SAVED_PAGE_SIZE = 20;
-import { normalize } from '../utils.js';
+
+const mediaOf = (item) => item.media_type ?? 'movie';
+const sameTitle = (item, id, mediaType) => item.id === id && mediaOf(item) === mediaType;
 
 let saved = load();
 
@@ -26,8 +30,8 @@ function notify() {
     document.dispatchEvent(new CustomEvent(CHANGE_EVENT));
 }
 
-function isSaved(id) {
-    return saved.some((movie) => movie.id === id);
+function isSaved(id, mediaType = 'movie') {
+    return saved.some((item) => sameTitle(item, id, mediaType));
 }
 
 function getSavedMovies() {
@@ -35,14 +39,14 @@ function getSavedMovies() {
 }
 
 function toggleSaved(movie) {
-    if (isSaved(movie.id)) {
-        saved = saved.filter((item) => item.id !== movie.id);
+    if (isSaved(movie.id, movie.mediaType)) {
+        saved = saved.filter((item) => !sameTitle(item, movie.id, movie.mediaType));
     } else {
         saved = [movie.toResponse(), ...saved];
     }
     persist();
     notify();
-    return isSaved(movie.id);
+    return isSaved(movie.id, movie.mediaType);
 }
 
 function getSavedPage(page = 1, { query = '', genreId = null } = {}) {

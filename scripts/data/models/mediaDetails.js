@@ -1,6 +1,6 @@
-import Movie from './movie.js';
+import Media from './media.js';
 
-export default class MovieDetails extends Movie {
+export default class MediaDetails extends Media {
     constructor(data) {
         super(data);
         this.tagline = data.tagline ?? '';
@@ -12,6 +12,7 @@ export default class MovieDetails extends Movie {
         this.recommendations = data.recommendations ?? [];
         this.belongToCollection = data.belongs_to_collection ?? [];
         this.productionCountries = data.production_countries ?? [];
+        this.seasons = data.number_of_seasons ?? null;
     }
 
     get formattedRuntime() {
@@ -21,17 +22,23 @@ export default class MovieDetails extends Movie {
         return hours ? `${hours} h ${minutes % 60} min` : `${minutes} min`;
     }
 
-    static fromResponse(response) {
+    get formattedSeasons() {
+        if (!this.seasons) return null;
+        return `${this.seasons} ${this.seasons === 1 ? 'temporada' : 'temporadas'}`;
+    }
+
+    static fromResponse(response, mediaType) {
         const genres = response.genres ?? [];
         const crew = response.credits?.crew ?? [];
         const cast = response.credits?.cast ?? [];
         const videos = (response.videos?.results ?? []).filter((video) => video.site === 'YouTube');
         const trailer = videos.find((video) => video.type === 'Trailer') ?? videos[0];
+        const isTv = mediaType === 'tv';
 
-        return new MovieDetails({
+        return new MediaDetails({
             id: response.id,
-            title: response.title,
-            release_date: response.release_date,
+            title: response.title ?? response.name,
+            release_date: response.release_date ?? response.first_air_date,
             score: response.vote_average,
             overview: response.overview,
             poster_path: response.poster_path,
@@ -39,15 +46,19 @@ export default class MovieDetails extends Movie {
             genres: genres.map((genre) => genre.id),
             genre_list: genres.map((genre) => ({ id: genre.id, name: genre.name })),
             tagline: response.tagline,
-            runtime: response.runtime,
-            directors: crew.filter((person) => person.job === 'Director').map((person) => person.name),
+            runtime: isTv ? (response.episode_run_time?.[0] ?? null) : response.runtime,
+            directors: isTv
+                ? (response.created_by ?? []).map((person) => person.name)
+                : crew.filter((person) => person.job === 'Director').map((person) => person.name),
+            number_of_seasons: response.number_of_seasons,
+            recommendations: (response.recommendations?.results ?? []).map((item) => Media.fromResponse(item, mediaType)),
+            media_type: mediaType,
             cast: cast.slice(0, 12).map((person) => ({
                 name: person.name,
                 character: person.character,
                 profilePath: person.profile_path,
             })),
             trailer_key: trailer?.key ?? null,
-            recommendations: (response.recommendations?.results ?? []).map((movie) => Movie.fromResponse(movie)),
             belongs_to_collection: response.belongs_to_collection,
             production_countries: (response.production_countries ?? [])
                 .map(({ iso_3166_1, name }) => ({ code: iso_3166_1, name }))

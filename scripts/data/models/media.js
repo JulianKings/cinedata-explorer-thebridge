@@ -1,9 +1,9 @@
 import { createGenreTag } from "../../utils.js";
 import { dotsIcon, bookmarkIcon, setBookmarkState } from "../../layoutUtils.js";
-import { isSaved, toggleSaved } from "../savedMovies.js";
+import { isSaved, toggleSaved } from "../savedMedia.js";
 
-export default class Movie {
-    constructor({ id, title, release_date, score, overview = "", poster_path = "", backdrop_path = "", genres = [] }) {
+export default class Media {
+    constructor({ id, title, release_date, score, overview = "", poster_path = "", backdrop_path = "", genres = [], media_type = 'movie' }) {
         this.id = id;
         this.title = title;
         this.releaseDate = release_date;
@@ -12,6 +12,7 @@ export default class Movie {
         this.posterPath = poster_path;
         this.backdropPath = backdrop_path;
         this.genres = genres;
+        this.mediaType = media_type;
     }
 
     buildUpcomingCard(heroCards, upcomingTrack, genresList, setHeroArt, icon) {
@@ -67,6 +68,7 @@ export default class Movie {
         upcomingMovieButtonsDetails.setAttribute('type', 'button');
         upcomingMovieButtonsDetails.setAttribute('aria-label', 'Más información');
         upcomingMovieButtonsDetails.dataset.details = this.id;
+        upcomingMovieButtonsDetails.dataset.media = this.mediaType;
 
         const upcomingMovieButtonsDetailsIcon = dotsIcon('btn__icon');
         upcomingMovieButtonsDetails.appendChild(upcomingMovieButtonsDetailsIcon);
@@ -81,6 +83,7 @@ export default class Movie {
         const topRatedCard = document.createElement('div');
         topRatedCard.classList.add('feature-card', 'feature-card--compact');
         topRatedCard.dataset.id = this.id;
+        topRatedCard.dataset.media = this.mediaType;
 
         const topRatedCardContent = document.createElement('div');
         topRatedCardContent.classList.add('feature-card__content');
@@ -129,6 +132,7 @@ export default class Movie {
         topRatedCardButtonsDetails.setAttribute('type', 'button');
         topRatedCardButtonsDetails.setAttribute('aria-label', 'Más información');
         topRatedCardButtonsDetails.dataset.details = this.id;
+        topRatedCardButtonsDetails.dataset.media = this.mediaType;
         topRatedCardButtons.appendChild(topRatedCardButtonsDetails);
 
         const topRatedCardButtonsDetailsIcon = dotsIcon('btn__icon');
@@ -145,12 +149,14 @@ export default class Movie {
         movieCard.classList.add('movie-card');
         movieCard.style.setProperty('--i', index);
         movieCard.dataset.id = this.id;
+        movieCard.dataset.media = this.mediaType;
 
         const movieCardBookmark = document.createElement('button');
         movieCardBookmark.classList.add('movie-card__bookmark');
         movieCardBookmark.setAttribute('type', 'button');
         movieCardBookmark.dataset.bookmark = this.id;
-        setBookmarkState(movieCardBookmark, isSaved(this.id));   // restored state, no burst
+        movieCardBookmark.dataset.media = this.mediaType;
+        setBookmarkState(movieCardBookmark, isSaved(this.id, this.mediaType));   // restored state, no burst
         movieCardBookmark.addEventListener('click', () => {
             const saved = toggleSaved(this);
 
@@ -192,6 +198,7 @@ export default class Movie {
         movieCardButton.setAttribute('type', 'button');
         movieCardButton.setAttribute('aria-label', 'Mas información');
         movieCardButton.dataset.details = this.id;
+        movieCardButton.dataset.media = this.mediaType;
         movieCardContent.appendChild(movieCardButton);
 
         const movieCardButtonIcon = dotsIcon('btn__icon');
@@ -212,19 +219,21 @@ export default class Movie {
             poster_path: this.posterPath,
             backdrop_path: this.backdropPath,
             genre_ids: this.genres,
+            media_type: this.mediaType,
         };
     }
 
-    static fromResponse(response) {
-        return new Movie({
+    static fromResponse(response, mediaType = response.media_type ?? 'movie') {
+        return new Media({
             id: response.id,
-            title: response.title,
-            release_date: response.release_date,
+            title: response.title ?? response.name,                         
+            release_date: response.release_date ?? response.first_air_date,
             score: response.vote_average,
             overview: response.overview,
             poster_path: response.poster_path,
             backdrop_path: response.backdrop_path,
             genres: response.genre_ids,
+            media_type: mediaType,
         });
     }
 }

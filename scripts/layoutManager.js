@@ -1,12 +1,12 @@
-import { getGenres, getPopularMovies, getPopularMoviesByGenre, searchMovies } from './data/apiLoader.js';
+import { getGenres, getPopular, getByGenre, searchTitles } from './data/apiLoader.js';
 import { printHome } from './pages/home.js';
 import { getHeroImageUrl } from './utils.js';
 import { h, icon, svg, setBookmarkState } from './layoutUtils.js';
-import { CHANGE_EVENT, isSaved, getSavedPage, getSavedMovies } from './data/savedMovies.js';
-import { openMovieModal, closeMovieModal } from './components/movieModal.js';
+import { CHANGE_EVENT, isSaved, getSavedPage, getSavedMovies } from './data/savedMedia.js';
+import { openMovieModal, closeMovieModal } from './components/mediaModal.js';
 import { openStatsModal } from './components/statsModal.js';
 import Genre from './data/models/genre.js';
-import Movie from './data/models/movie.js';
+import Media from './data/models/media.js';
 // Data
 const pages = [
     {
@@ -39,6 +39,10 @@ const PAGE_KEYS = pages.map((page) => page.pageKey);
 let currentPage = 'home';
 let pageRoot = null;
 const pageCleanups = [];
+const PAGE_MEDIA = { home: 'movie', series: 'tv' };   // 'saved' mixes both
+const LIST_TITLES = { home: 'Lo más popular', series: 'Series populares', saved: 'Guardadas' };
+const genresByMedia = { movie: [], tv: [] };
+let currentMedia = 'movie';
 
 // DOM
 const app = document.querySelector('body');
@@ -108,6 +112,7 @@ document.addEventListener('click', (event) => {
     if (trigger) {
         openMovieModal(
             Number(trigger.dataset.details),
+            trigger.dataset.media ?? 'movie',
             genres,
             setHeroArt,
             trigger.closest('.feature-card, .movie-card')
@@ -125,7 +130,7 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener(CHANGE_EVENT, () => {
     document.querySelectorAll('[data-bookmark]').forEach((button) => {
-        setBookmarkState(button, isSaved(Number(button.dataset.bookmark)));
+        setBookmarkState(button, isSaved(Number(button.dataset.bookmark), button.dataset.media));
     });
     if (currentPage === 'saved' && movieGrid) refreshSavedPage();
 });
@@ -162,6 +167,19 @@ function resetPageState() {
 }
 
 // DOM / VIEWS
+async function loadGenres(mediaType) {
+    if (!genresByMedia[mediaType].length) {
+        genresByMedia[mediaType] = (await getGenres(mediaType)).map((genre) => Genre.fromResponse(genre));
+    }
+    return genresByMedia[mediaType];
+}
+
+async function getPageGenres(pageKey) {
+    if (pageKey !== 'saved') return loadGenres(PAGE_MEDIA[pageKey]);
+    const [movieGenres, tvGenres] = await Promise.all([loadGenres('movie'), loadGenres('tv')]);
+    return [...movieGenres, ...tvGenres.filter((tv) => !movieGenres.some((movie) => movie.id === tv.id))];
+}
+
 function renderThemeButton() {
     if (!themeIcon || !themeButton) return;
     const isDark = theme === 'dark';
@@ -298,20 +316,28 @@ const printBasicLayout = () => {
 
 async function appendContent(pageKey) {
     currentPage = pageKey;
+    currentMedia = PAGE_MEDIA[pageKey] ?? null;
     setActiveNav(pageKey);
     resetPageState();
+
+    document.querySelector('#search-input').placeholder =
+        pageKey === 'series' ? 'Busca series por título...' : 'Busca películas por título...';
     const root = pageRoot;
 
-    if (!genres.length) genres = (await getGenres()).map((genre) => Genre.fromResponse(genre));
+    const pageGenres = await getPageGenres(pageKey);
     if (root !== pageRoot) return; // navigated again while loading
+    genres = pageGenres;
 
     switch (pageKey) {
         case 'saved':
-            buildMoviesList(pageRoot);
+            buildMoviesList(root);
+            break;
+        case 'series':
+            await printHome(root, buildMoviesList, genres, heroCards, setHeroArt, setupSlider, 'tv');
             break;
         case 'home':
         default:
-            await printHome(pageRoot, buildMoviesList, genres, heroCards, setHeroArt, setupSlider);
+            await printHome(root, buildMoviesList, genres, heroCards, setHeroArt, setupSlider, 'movie');
             break;
     }
 }
@@ -389,10 +415,10 @@ function fetchCurrentMovies(page) {
         const genreId = searchGenre?.id ?? (selectedGenre > 0 ? selectedGenre : null);
         return getSavedPage(page, { query: searchQuery, genreId });
     } else {
-        if (searchQuery) return searchMovies(searchQuery, page);
-        if (searchGenre) return getPopularMoviesByGenre(searchGenre.id, page);
-        if (selectedGenre && selectedGenre !== -1) return getPopularMoviesByGenre(selectedGenre, page);
-        return getPopularMovies(page);
+        if (searchQuery) return searchTitles(currentMedia, searchQuery, page);
+        if (searchGenre) return getByGenre(currentMedia, searchGenre.id, page);
+        if (selectedGenre > 0) return getByGenre(currentMedia, selectedGenre, page);
+        return getPopular(currentMedia, page);
     }
 }
 
@@ -400,14 +426,15 @@ function getResultsTitle() {
     const prefix = currentPage === 'saved' ? 'Guardadas · ' : '';
     if (searchQuery) return `${prefix}Resultados para "${searchQuery}"`;
     if (searchGenre) return `${prefix}Género: ${searchGenre.name}`;
-    return currentPage === 'saved' ? 'Guardadas' : 'Lo más popular';
+    return LIST_TITLES[currentPage];
 }
 
 function getEmptyMessage() {
     if (searchQuery) return `No hay resultados para "${searchQuery}".`;
+    if (currentPage === 'series') return 'No hay series para mostrar.';
     if (currentPage !== 'saved') return 'No hay películas para mostrar.';
-    if (searchGenre || selectedGenre > 0) return 'No tienes películas guardadas de este género.';
-    return 'Aún no has guardado ninguna película. Pulsa el marcador de cualquier película para tenerla aquí.';
+    if (searchGenre || selectedGenre > 0) return 'No tienes nada guardado de este género.';
+    return 'Aún no has guardado nada. Pulsa el marcador de cualquier película o serie para tenerla aquí.';
 }
 
 function getChipGenres() {
@@ -474,7 +501,7 @@ async function loadMoviesPage(page, { quiet = false } = {}) {
 
     popularPage = moviesData.page;
     const totalPages = Math.min(moviesData.total_pages, 500);
-    const moviesList = moviesData.results.map((movie) => Movie.fromResponse(movie));
+    const moviesList = moviesData.results.map((item) => Media.fromResponse(item, currentMedia ?? item.media_type ?? 'movie'));
 
     for (let i = heroCards.length - 1; i >= 0; i--) {
         if (movieGrid.contains(heroCards[i].card)) heroCards.splice(i, 1);
@@ -635,7 +662,7 @@ function updateSearchView() {
 
 async function refreshSavedPage() {
     const leaving = [...movieGrid.querySelectorAll('.movie-card')]
-        .filter((card) => !isSaved(Number(card.dataset.id)));
+        .filter((card) => !isSaved(Number(card.dataset.id), card.dataset.media));
 
     leaving.forEach((card) => card.classList.add('is-leaving'));
     await Promise.all(leaving.flatMap((card) =>

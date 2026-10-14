@@ -104,7 +104,7 @@ function buildTile(label, index) {
 }
 
 function buildTiles(stats) {
-    const total = buildTile('Películas guardadas', 0);
+    const total = buildTile('Títulos guardados', 0);
     const score = buildTile('Nota media', 1);
     const decade = buildTile('Década favorita', 2);
     const genre = buildTile('Género favorito', 3);
@@ -165,7 +165,7 @@ function renderPieChart(Chart, { canvas, rows }) {
                 tooltip: {
                     ...tooltipStyle(),
                     callbacks: {
-                        label: (item) => `${item.raw} ${item.raw === 1 ? 'película' : 'películas'} · ${percent(item.raw)}%`,
+                        label: (item) => `${item.raw} ${item.raw === 1 ? 'título' : 'títulos'} · ${percent(item.raw)}%`,
                     },
                 },
             },
@@ -249,7 +249,7 @@ function renderBarChart(Chart, { canvas, rows, horizontal }) {
                 tooltip: {
                     ...tooltipStyle(),
                     callbacks: {
-                        label: (item) => `${item.raw} ${item.raw === 1 ? 'película' : 'películas'}`,
+                        label: (item) => `${item.raw} ${item.raw === 1 ? 'título' : 'títulos'}`,
                     },
                 },
             },
@@ -276,18 +276,18 @@ async function openStatsModal(genres) {
 
     const header = h('header', { class: 'stats-header' },
         h('h2', { class: 'stats-header__title', id: 'stats-title', text: 'Tus estadísticas' }),
-        h('p', { class: 'stats-header__subtitle', text: `Basado en ${stats.total} ${stats.total === 1 ? 'película guardada' : 'películas guardadas'}` })
+        h('p', { class: 'stats-header__subtitle', text: `Basado en ${stats.total} ${stats.total === 1 ? 'título guardado' : 'títulos guardados'}` })
     );
 
     if (stats.total === 0) {
-        body.replaceChildren(header, h('p', { class: 'empty-state', text: 'Guarda alguna película para ver tus estadísticas.' }));
+        body.replaceChildren(header, h('p', { class: 'empty-state', text: 'Guarda alguna película o serie para ver tus estadísticas.' }));
         modal.showModal();
         return;
     }
 
     // build everything first so the layout doesn't jump when the charts arrive
     const cards = [
-        buildChartCard({ title: 'Tus géneros', note: 'Porcentaje sobre todas las etiquetas de género: una película puede tener varios.', rows: stats.genreRows, tableRows: stats.genreTableRows, columnLabel: 'Género', type: 'pie', index: 4 }),
+        buildChartCard({ title: 'Tus géneros', note: 'Porcentaje sobre todas las etiquetas de género: un título puede tener varios.', rows: stats.genreRows, tableRows: stats.genreTableRows, columnLabel: 'Género', type: 'pie', index: 4 }),
         buildChartCard({ title: 'Por década', rows: stats.decadeRows, columnLabel: 'Década', index: 5 }),
         buildChartCard({ title: 'Distribución de notas', rows: stats.scoreRows, columnLabel: 'Nota', index: 6 }),
     ].filter((card) => card.rows.length > 0);

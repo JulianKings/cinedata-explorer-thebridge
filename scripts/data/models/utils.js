@@ -15,3 +15,13 @@ function redact(text) {
     const value = String(text ?? '');
     return API_KEY ? value.split(API_KEY).join('***') : value;
 }
+
+function todayISO() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+export { todayISO };

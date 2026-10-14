@@ -1,5 +1,5 @@
 import { API_KEY, LANGUAGE, CACHE_MS, MAX_RETRIES } from './config.js';
-import { TmdbError } from './models/utils.js';
+import { TmdbError, todayISO } from './models/utils.js';
 
 const API_URL = 'https://api.themoviedb.org/3';
 
@@ -74,45 +74,40 @@ async function callTMDB(publicUrl) {
     }
 }
 
-async function getUpcomingMovies() {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-    const dd = String(now.getDate()).padStart(2, '0');
-
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
-    return (await request('/discover/movie', { "primary_release_date.gte": formattedDate, sort_by: 'popularity.desc', include_adult: true }));
+async function getUpcoming(mediaType = 'movie') {
+    const dateFilter = mediaType === 'tv' ? 'first_air_date.gte' : 'primary_release_date.gte';
+    return (await request(`/discover/${mediaType}`, { [dateFilter]: todayISO(), sort_by: 'popularity.desc', include_adult: true }));
 }
 
-async function getTopRatedMovies() {
-    return (await request('/movie/top_rated', { sort_by: 'vote_average.desc', 'vote_count.gte': 1000000, include_adult: true }));
+async function getTopRated(mediaType = 'movie') {
+    return (await request(`/${mediaType}/top_rated`));
 }
 
-async function getPopularMovies(page = 1) {
-    return (await request('/movie/popular', { sort_by: 'popularity.desc', page, include_adult: true }));
+async function getPopular(mediaType = 'movie', page = 1) {
+    return (await request(`/${mediaType}/popular`, { page }));
 }
 
-async function getPopularMoviesByGenre(genreId, page = 1) {
-    return (await request('/discover/movie', { "with_genres": genreId, page, sort_by: 'popularity.desc', include_adult: true }));
+async function getByGenre(mediaType, genreId, page = 1) {
+    return (await request(`/discover/${mediaType}`, { with_genres: genreId, page, sort_by: 'popularity.desc', include_adult: true }));
 }
 
-async function searchMovies(query, page = 1) {
-    return (await request('/search/movie', { query, page, include_adult: false }));
+async function searchTitles(mediaType, query, page = 1) {
+    return (await request(`/search/${mediaType}`, { query, page, include_adult: false }));
 }
 
-async function getGenres() {
-    const data = await request('/genre/movie/list');
+async function getGenres(mediaType = 'movie') {
+    const data = await request(`/genre/${mediaType}/list`);
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
 }
 
-async function getMovieDetails(id) {
-    return (await request(`/movie/${id}`, {
+async function getMediaDetails(mediaType, id) {
+    return (await request(`/${mediaType}/${id}`, {
         append_to_response: 'credits,videos,recommendations',
-        include_video_language: 'es,en,null', // many films only have English trailers
+        include_video_language: 'es,en,null', // many titles only have English trailers
     }));
 }
 
 export { 
-    clearCache, getUpcomingMovies, getGenres, getTopRatedMovies, getPopularMovies, getPopularMoviesByGenre, searchMovies,
-    getMovieDetails
+    clearCache, getUpcoming, getGenres, getTopRated, getPopular, getByGenre, searchTitles,
+    getMediaDetails
  };

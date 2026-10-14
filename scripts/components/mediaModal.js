@@ -1,5 +1,5 @@
-import { getMovieDetails } from '../data/apiLoader.js';
-import MovieDetails from '../data/models/movieDetails.js';
+import { getMediaDetails } from '../data/apiLoader.js';
+import MediaDetails from '../data/models/mediaDetails.js';
 import { imageUrl, createGenreTag } from '../utils.js';
 import { h, icon } from '../layoutUtils.js';
 import { buildProductionSection, destroyProductionMap } from './productionMap.js';
@@ -105,10 +105,12 @@ function closeMovieModal({ morphBack: morphBack = true } = {}) {
 function buildHero(movie) {
     const backdrop = imageUrl(movie.backdropPath, 'w1280');
     const poster = imageUrl(movie.posterPath, 'w500');
+    const isTv = movie.mediaType === 'tv';
     const meta = [
         movie.releaseDate?.slice(0, 4),
-        movie.formattedRuntime,
-        movie.directors.length && `Dirigida por ${movie.directors.join(', ')}`,
+        isTv ? movie.formattedSeasons : movie.formattedRuntime,
+        isTv && movie.formattedRuntime && `${movie.formattedRuntime} por episodio`,
+        movie.directors.length && `${isTv ? 'Creada' : 'Dirigida'} por ${movie.directors.join(', ')}`,
     ].filter(Boolean).join(' · ');
 
     const hero = h('section', { class: 'details-hero' },
@@ -173,7 +175,7 @@ function buildRecommendations(movie, genres, setHeroArt) {
     );
 }
 
-async function openMovieModal(movieId, genres, setHeroArt, sourceCard = null) {
+async function openMovieModal(movieId, mediaType, genres, setHeroArt, sourceCard = null) {
     const modal = getDialog();
     const id = ++requestId;
 
@@ -197,8 +199,7 @@ async function openMovieModal(movieId, genres, setHeroArt, sourceCard = null) {
 
     let movie;
     try {
-        movie = MovieDetails.fromResponse(await getMovieDetails(movieId));
-        console.log(movie);
+        movie = MediaDetails.fromResponse(await getMediaDetails(mediaType, movieId), mediaType);
     } catch (error) {
         console.error(error);
         if (id !== requestId) return;
