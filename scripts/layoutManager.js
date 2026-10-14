@@ -1,10 +1,11 @@
-import { getGenres, getPopular, getByGenre, searchTitles } from './data/apiLoader.js';
+import { getGenres, getPopular, getByGenre, searchTitles, discover } from './data/apiLoader.js';
 import { printHome } from './pages/home.js';
 import { getHeroImageUrl } from './utils.js';
 import { h, icon, svg, setBookmarkState } from './layoutUtils.js';
 import { CHANGE_EVENT, isSaved, getSavedPage, getSavedMovies } from './data/savedMedia.js';
 import { openMovieModal, closeMovieModal } from './components/mediaModal.js';
 import { openStatsModal } from './components/statsModal.js';
+import { openFiltersPanel, describeFilters } from './components/filtersPanel.js';
 import Genre from './data/models/genre.js';
 import Media from './data/models/media.js';
 // Data
@@ -35,6 +36,8 @@ let popularRequestId = 0;
 let searchQuery = '';
 let searchTimer = null;
 let searchGenre = null;
+let activeFilters = null;
+let filtersButton = null;
 const PAGE_KEYS = pages.map((page) => page.pageKey);
 let currentPage = 'home';
 let pageRoot = null;
@@ -155,6 +158,9 @@ function resetPageState() {
     popularRequestId++;            // ignore responses still arriving for the old page
     searchQuery = '';
     searchGenre = null;
+    activeFilters = null;
+    filtersButton?.classList.remove('has-filters');
+    filtersButton?.setAttribute('aria-pressed', 'false');
     selectedGenre = null;
     movieGrid = null;
     heroCards.length = 0;
@@ -273,6 +279,20 @@ const printBasicLayout = () => {
     const search = document.createElement('label');
     search.classList.add('search');
     topBar.appendChild(search);
+
+    filtersButton = h('button', {
+        class: 'icon-button filters-button',
+        type: 'button',
+        'aria-label': 'Búsqueda avanzada',
+        'aria-pressed': 'false',
+        onClick: () => openFiltersPanel({
+            filters: activeFilters,
+            genres,
+            local: currentPage === 'saved',
+            onApply: applyFilters,
+        }),
+    }, icon('filters'));
+    topBar.appendChild(filtersButton);
 
     const searchIcon = icon('search', 'search__icon');
     search.appendChild(searchIcon);
@@ -427,9 +447,11 @@ async function buildMoviesList(boxContainer) {
 
 function fetchCurrentMovies(page) {
     if (currentPage === 'saved') {
+        if (activeFilters) return getSavedPage(page, { filters: activeFilters });
         const genreId = searchGenre?.id ?? (selectedGenre > 0 ? selectedGenre : null);
         return getSavedPage(page, { query: searchQuery, genreId });
     } else {
+        if (activeFilters) return discover(currentMedia, activeFilters, page);
         if (searchQuery) return searchTitles(currentMedia, searchQuery, page);
         if (searchGenre) return getByGenre(currentMedia, searchGenre.id, page);
         if (selectedGenre > 0) return getByGenre(currentMedia, selectedGenre, page);
@@ -439,12 +461,14 @@ function fetchCurrentMovies(page) {
 
 function getResultsTitle() {
     const prefix = currentPage === 'saved' ? 'Guardadas · ' : '';
+    if (activeFilters) return `${prefix}${describeFilters(activeFilters, genres)}`;
     if (searchQuery) return `${prefix}Resultados para "${searchQuery}"`;
     if (searchGenre) return `${prefix}Género: ${searchGenre.name}`;
     return LIST_TITLES[currentPage];
 }
 
 function getEmptyMessage() {
+    if (activeFilters) return 'Ningún título coincide con estos filtros.';
     if (searchQuery) return `No hay resultados para "${searchQuery}".`;
     if (currentPage === 'series') return 'No hay series para mostrar.';
     if (currentPage !== 'saved') return 'No hay películas para mostrar.';
@@ -633,6 +657,7 @@ function applySearch(value) {
 
     searchQuery = query;
     searchGenre = null; // typing replaces a genre search
+    activeFilters = null; // ...and the advanced filters
     updateSearchView();
     loadMoviesPage(1);
 }
@@ -644,25 +669,42 @@ function applyGenreSearch(genreId) {
     clearTimeout(searchTimer); // a pending keystroke search would overwrite this
     searchQuery = '';
     searchGenre = genre;
+    activeFilters = null;
     document.querySelector('#search-input').value = '';
 
     updateSearchView();
-    goToMoviesPage(1); // loads and scrolls to the results
+    loadMoviesPage(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // the hero is collapsing: results end up right under the search bar
 }
 
 function clearSearch() {
     clearTimeout(searchTimer);
     searchQuery = '';
     searchGenre = null;
+    activeFilters = null;
     document.querySelector('#search-input').value = '';
 
     updateSearchView();
     loadMoviesPage(1);
 }
 
+function applyFilters(filters) {
+    clearTimeout(searchTimer);
+    searchQuery = '';
+    searchGenre = null;
+    activeFilters = filters;            // null = filters cleared
+    document.querySelector('#search-input').value = '';
+
+    updateSearchView();
+    loadMoviesPage(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // the hero is collapsing: results end up right under the search bar
+}
+
 function updateSearchView() {
-    const isSearching = Boolean(searchQuery || searchGenre);
+    const isSearching = Boolean(searchQuery || searchGenre || activeFilters);
     main.classList.toggle('is-searching', isSearching);
+    filtersButton.classList.toggle('has-filters', Boolean(activeFilters));
+    filtersButton.setAttribute('aria-pressed', String(Boolean(activeFilters)));
     const heroRow = document.querySelector('.hero-row');
     if (heroRow) heroRow.inert = isSearching;
     document.querySelector('#genre-chips').hidden = isSearching;

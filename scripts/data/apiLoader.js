@@ -95,6 +95,29 @@ async function searchTitles(mediaType, query, page = 1) {
     return (await request(`/search/${mediaType}`, { query, page, include_adult: false }));
 }
 
+async function discover(mediaType, filters, page = 1) {
+    const date = mediaType === 'tv' ? 'first_air_date' : 'primary_release_date';
+    const sortBy = {
+        popularity: 'popularity.desc',
+        score: 'vote_average.desc',
+        date: `${date}.desc`,
+    }[filters.sort] ?? 'popularity.desc';
+
+    return (await request(`/discover/${mediaType}`, {
+        with_genres: filters.genres.join(filters.genreMode === 'any' ? '|' : ','),
+        [`${date}.gte`]: filters.yearFrom ? `${filters.yearFrom}-01-01` : undefined,
+        // "newest first" would otherwise start with announced titles that have no data yet
+        [`${date}.lte`]: filters.yearTo ? `${filters.yearTo}-12-31` : (filters.sort === 'date' ? todayISO() : undefined),
+        'vote_average.gte': filters.minScore || undefined,
+        // a 9.5 from 3 votes is noise: require some votes when score matters
+        'vote_count.gte': (filters.minScore || filters.sort === 'score') ? 100 : undefined,
+        with_original_language: filters.language || undefined,
+        sort_by: sortBy,
+        include_adult: false,
+        page,
+    }));
+}
+
 async function getGenres(mediaType = 'movie') {
     const data = await request(`/genre/${mediaType}/list`);
     return asArray(data.genres).map(({ id, name }) => ({ id, name }));
@@ -109,5 +132,5 @@ async function getMediaDetails(mediaType, id) {
 
 export { 
     clearCache, getUpcoming, getGenres, getTopRated, getPopular, getByGenre, searchTitles,
-    getMediaDetails
+    discover, getMediaDetails
  };

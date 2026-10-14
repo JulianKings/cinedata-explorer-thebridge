@@ -49,12 +49,38 @@ function toggleSaved(movie) {
     return isSaved(movie.id, movie.mediaType);
 }
 
-function getSavedPage(page = 1, { query = '', genreId = null } = {}) {
+function matchesFilters(item, filters) {
+    const ids = item.genre_ids ?? [];
+    const year = Number(item.release_date?.slice(0, 4)) || null;
+
+    if (filters.genres.length) {
+        const match = filters.genreMode === 'any'
+            ? filters.genres.some((id) => ids.includes(id))
+            : filters.genres.every((id) => ids.includes(id));
+        if (!match) return false;
+    }
+    if (filters.yearFrom && (!year || year < filters.yearFrom)) return false;
+    if (filters.yearTo && (!year || year > filters.yearTo)) return false;
+    if (filters.minScore && !(item.vote_average >= filters.minScore)) return false;
+    return true;
+}
+
+const SAVED_SORTERS = {
+    score: (a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0),
+    date: (a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? ''),
+};
+
+function getSavedPage(page = 1, { query = '', genreId = null, filters = null } = {}) {
     const text = normalize(query);
-    const results = saved.filter((movie) =>
+    let results = saved.filter((movie) =>
         (!text || normalize(movie.title).includes(text)) &&
         (!genreId || movie.genre_ids?.includes(genreId))
     );
+
+    if (filters) {
+        results = results.filter((item) => matchesFilters(item, filters));
+        if (SAVED_SORTERS[filters.sort]) results = [...results].sort(SAVED_SORTERS[filters.sort]);
+    }
 
     const totalPages = Math.ceil(results.length / SAVED_PAGE_SIZE);
     const current = Math.min(Math.max(page, 1), Math.max(totalPages, 1)); // clamp, e.g. after removing the last card of the last page
