@@ -4,6 +4,7 @@ import { getHeroImageUrl } from './utils.js';
 import { h, icon, svg, setBookmarkState } from './layoutUtils.js';
 import { CHANGE_EVENT, isSaved, getSavedPage, getSavedMovies } from './data/savedMovies.js';
 import { openMovieModal, closeMovieModal } from './components/movieModal.js';
+import { openStatsModal } from './components/statsModal.js';
 import Genre from './data/models/genre.js';
 import Movie from './data/models/movie.js';
 // Data
@@ -332,6 +333,14 @@ async function buildMoviesList(boxContainer) {
     popularTitle.setAttribute('id', 'recommended-title');
     popularTitle.textContent = getResultsTitle();
     popularHeader.appendChild(popularTitle);
+
+    if (currentPage === 'saved') {
+        popularHeader.appendChild(h('button', {
+            class: 'chip chip--stats',
+            type: 'button',
+            onClick: () => openStatsModal(genres),
+        }, icon('chart', 'chip__icon'), 'Estadísticas'));
+    }
 
     const clearSearchButton = document.createElement('button');
     clearSearchButton.classList.add('chip', 'chip--clear');
