@@ -8,6 +8,9 @@ let dialog = null;
 let body = null;
 let requestId = 0;
 let originCard = null;
+const YT_EMBED = 'https://www.youtube-nocookie.com/embed/';
+const YT_THUMB = 'https://i.ytimg.com/vi/';
+const YT_KEY = /^[\w-]{6,20}$/;
 
 const MORPH_NAME = 'movie-morph';
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -75,6 +78,47 @@ function getDialog() {
     return dialog;
 }
 
+function buildTrailer(movie) {
+    const key = movie.trailerKey;
+    if (!key || !YT_KEY.test(key)) return null;
+
+    const player = h('div', { class: 'trailer__player' },
+        h('button', {
+            class: 'trailer__facade',
+            type: 'button',
+            'aria-label': `Reproducir el tráiler de ${movie.title}`,
+            style: `--thumb: url("${YT_THUMB}${key}/hqdefault.jpg")`,
+        }, h('span', { class: 'trailer__play' }, icon('play-wide', 'icon--filled')))
+    );
+
+    const play = () => {
+        if (player.querySelector('iframe')) return; // already playing
+        player.replaceChildren(h('iframe', {
+            class: 'trailer__iframe',
+            src: `${YT_EMBED}${key}?autoplay=1&rel=0&playsinline=1`,
+            title: `Tráiler de ${movie.title}`,
+            allow: 'autoplay; encrypted-media; picture-in-picture; fullscreen',
+            allowfullscreen: true,
+            referrerpolicy: 'strict-origin-when-cross-origin',
+        }));
+    };
+    player.querySelector('.trailer__facade').addEventListener('click', play);
+
+    const section = h('section', { class: 'details-section trailer', 'aria-labelledby': 'trailer-title' },
+        h('h3', { class: 'details-section__title', id: 'trailer-title', text: 'Tráiler' }),
+        player,
+        h('a', {
+            class: 'trailer__external',
+            href: `https://www.youtube.com/watch?v=${key}`,
+            target: '_blank',
+            rel: 'noopener',
+            text: '¿No se reproduce? Ver en YouTube',
+        })
+    );
+
+    return { section, play };
+}
+
 function closeMovieModal({ morphBack: morphBack = true } = {}) {
     if (!dialog?.open || dialog.classList.contains('is-closing')) return;
     if (document.documentElement.classList.contains('is-morphing')) return;
@@ -102,7 +146,7 @@ function closeMovieModal({ morphBack: morphBack = true } = {}) {
     dialog.classList.add('is-closing');
 }
 
-function buildHero(movie) {
+function buildHero(movie, onPlayTrailer) {
     const backdrop = imageUrl(movie.backdropPath, 'w1280');
     const poster = imageUrl(movie.posterPath, 'w500');
     const isTv = movie.mediaType === 'tv';
@@ -128,12 +172,11 @@ function buildHero(movie) {
                 movie.tagline && h('p', { class: 'details-hero__tagline', text: movie.tagline }),
                 meta && h('p', { class: 'details-hero__meta', text: meta }),
                 h('p', { class: 'details-hero__overview', text: movie.overview || 'Sin sinopsis disponible.' }),
-                movie.trailerKey && h('div', { class: 'feature-card__buttons' },
-                    h('a', {
+                onPlayTrailer && h('div', { class: 'feature-card__buttons' },
+                    h('button', {
                         class: 'btn btn--primary',
-                        href: `https://www.youtube.com/watch?v=${movie.trailerKey}`,
-                        target: '_blank',
-                        rel: 'noopener',
+                        type: 'button',
+                        onClick: onPlayTrailer,
                     }, icon('play-wide', 'icon--filled btn__icon'), h('span', { text: 'Ver tráiler' }))
                 )
             )
@@ -208,8 +251,15 @@ async function openMovieModal(movieId, mediaType, genres, setHeroArt, sourceCard
     }
     if (id !== requestId) return;
 
+    const trailer = buildTrailer(movie);
+    const playTrailer = trailer && (() => {
+        trailer.section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        trailer.play();
+    });
+
     body.replaceChildren(...[
-        buildHero(movie),
+        buildHero(movie, playTrailer),
+        trailer?.section,
         buildCast(movie),
         buildProductionSection(movie.productionCountries),
         buildRecommendations(movie, genres, setHeroArt),

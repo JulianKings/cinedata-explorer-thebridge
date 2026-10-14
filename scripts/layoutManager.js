@@ -188,6 +188,13 @@ function renderThemeButton() {
     themeButton.setAttribute('aria-pressed', String(!isDark));
 }
 
+function playThemeIconSwap() {
+    if (!themeIcon) return;
+    themeIcon.classList.remove('is-swapping');
+    void themeIcon.getBoundingClientRect(); // restart the animation (SVGs have no offsetWidth)
+    themeIcon.classList.add('is-swapping');
+}
+
 function applyTheme(newTheme, remember = false) {
     theme = newTheme === 'light' ? 'light' : 'dark';
     document.documentElement.dataset.theme = theme;
@@ -294,6 +301,7 @@ const printBasicLayout = () => {
     lightModeButton.classList.add('icon-button');
     lightModeButton.setAttribute('type', 'button');
     lightModeButton.setAttribute('aria-label', 'Modo Oscuro/Claro');
+    lightModeButton.classList.add('icon-button', 'theme-toggle');
     topBar.appendChild(lightModeButton);
 
     const lightModeButtonIcon = icon('sun', 'icon');
@@ -307,10 +315,17 @@ const printBasicLayout = () => {
 
     lightModeButton.addEventListener('click', (event) => {
         const next = theme === 'dark' ? 'light' : 'dark';
-        if (!document.startViewTransition) return applyTheme(next, true);
+        if (!document.startViewTransition) {
+            applyTheme(next, true);
+            playThemeIconSwap();
+            return;
+        }
         document.documentElement.style.setProperty('--vt-x', `${event.clientX}px`);
         document.documentElement.style.setProperty('--vt-y', `${event.clientY}px`);
-        document.startViewTransition(() => applyTheme(next, true));
+        document.startViewTransition(() => {
+            applyTheme(next, true);
+            playThemeIconSwap();
+        });
     });
 }
 
